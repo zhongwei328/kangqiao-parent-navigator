@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>教育规划 Navigator · 家长版</title>
+<style>
+  :root{
+    --bg:#f5f6fa; --card:#ffffff; --ink:#1f2430; --muted:#6b7280;
+    --line:#e6e8ef; --accent:#4f46e5; --accent-soft:#eef0ff;
+    --ok:#16a34a; --warn:#d97706; --ok-soft:#e8f6ee; --warn-soft:#fdf3e3;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    background:var(--bg); color:var(--ink); line-height:1.6; font-size:15px;
+  }
+  .wrap{max-width:760px; margin:0 auto; padding:18px 16px 60px}
+  header.app{
+    background:linear-gradient(135deg,#4f46e5,#7c3aed); color:#fff;
+    border-radius:16px; padding:20px 18px; margin-bottom:18px;
+  }
+  header.app h1{margin:0; font-size:20px; letter-spacing:.5px}
+  header.app p{margin:6px 0 0; opacity:.9; font-size:13px}
+  .card{
+    background:var(--card); border:1px solid var(--line); border-radius:14px;
+    padding:16px; margin-bottom:16px; box-shadow:0 1px 2px rgba(16,24,40,.04);
+  }
+  .card h2{margin:0 0 12px; font-size:16px; display:flex; align-items:center; gap:8px}
+  .card h2 .dot{width:8px;height:8px;border-radius:50%;background:var(--accent)}
+  label{display:block; font-size:13px; color:var(--muted); margin:10px 0 4px}
+  input,textarea,select{
+    width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:10px;
+    font-size:15px; font-family:inherit; background:#fff; color:var(--ink);
+  }
+  textarea{resize:vertical; min-height:60px}
+  input:focus,textarea:focus{outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft)}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+  .subj{border:1px dashed var(--line); border-radius:12px; padding:12px; margin-top:10px; transition:box-shadow .4s, border-color .4s}
+  .subj.flash{border-color:var(--accent); box-shadow:0 0 0 4px var(--accent-soft); background:var(--accent-soft)}
+  .subj .row{display:grid; grid-template-columns:1fr 110px; gap:10px; align-items:end}
+  .subj .row .grade input{text-align:center; font-weight:700}
+  .btn{
+    display:inline-flex; align-items:center; justify-content:center; gap:6px;
+    border:none; border-radius:12px; padding:13px 18px; font-size:15px; font-weight:600;
+    background:var(--accent); color:#fff; cursor:pointer; width:100%; margin-top:14px;
+  }
+  .btn:active{transform:translateY(1px)}
+  .btn.ghost{background:#fff; color:var(--accent); border:1px solid var(--accent)}
+  .btn.sm{width:auto; padding:9px 14px; font-size:13px; margin-top:8px}
+  .pdfzone{border:1px solid var(--line); border-radius:12px; padding:12px; background:#fafbff}
+  .pdfzone .hint{font-size:12px; color:var(--muted); margin:8px 0 0}
+  #pdfStatus{margin-top:10px; font-size:13px; padding:9px 12px; border-radius:10px; display:none}
+  #pdfStatus.show{display:block}
+  #pdfStatus.ok{background:var(--ok-soft); color:var(--ok)}
+  #pdfStatus.warn{background:var(--warn-soft); color:var(--warn)}
+  #pdfStatus.err{background:#fdecec; color:#b91c1c}
+  details.adv{margin-top:14px; font-size:13px; color:var(--muted)}
+  details.adv summary{cursor:pointer}
+  /* report */
+  #report{display:none}
+  .sec{border-left:3px solid var(--accent); padding:6px 0 6px 14px; margin:18px 0}
+  .sec h3{margin:0 0 8px; font-size:15px}
+  .sec p{margin:6px 0}
+  .muted{color:var(--muted); font-size:13px}
+  .tag{display:inline-block; font-size:12px; padding:2px 8px; border-radius:999px; margin-left:4px}
+  .tag.ok{background:var(--ok-soft); color:var(--ok)}
+  .tag.warn{background:var(--warn-soft); color:var(--warn)}
+  ul.diag,ul.timeline{margin:6px 0; padding-left:20px}
+  ul.diag li{margin:6px 0}
+  ol.timeline{margin:6px 0; padding-left:20px}
+  ol.timeline li{margin:8px 0}
+  blockquote{margin:8px 0; padding:10px 12px; background:#f8f9fc; border-left:3px solid var(--line); border-radius:8px; font-size:13px; white-space:pre-wrap}
+  .kpi{display:flex; gap:10px; flex-wrap:wrap; margin:8px 0}
+  .kpi .box{flex:1; min-width:120px; background:var(--accent-soft); border-radius:12px; padding:12px; text-align:center}
+  .kpi .box b{display:block; font-size:22px; color:var(--accent)}
+  .kpi .box span{font-size:12px; color:var(--muted)}
+  @media print{
+    header.app,.card#intake,.btn,#pdfStatus,details.adv{display:none !important}
+    body{background:#fff}
+    .wrap{max-width:100%}
+    .card{border:none; box-shadow:none; padding:0}
+    #report{display:block}
+    .sec{break-inside:avoid}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="app">
+    <h1>教育规划 Navigator · 家长版</h1>
+    <p>上传 / 填写孩子档案 → 一键生成 AI 诊断报告（IB MYP 适配 · 中英文通吃）</p>
+  </header>
+
+  <!-- ============ 录入端 ============ -->
+  <section class="card" id="intake">
+    <h2><span class="dot"></span>学生档案录入</h2>
+
+    <div class="grid2">
+      <div><label>姓名</label><input id="name" placeholder="如 Henry Mu" /></div>
+      <div><label>年级</label><input id="grade" placeholder="如 7（G7）" inputmode="numeric" /></div>
+    </div>
+    <div class="grid2">
+      <div><label>学校</label><input id="school" placeholder="如 Kang Chiao International School" /></div>
+      <div><label>国籍</label><input id="nationality" placeholder="如 德国 / German" /></div>
+    </div>
+
+    <label>学业成绩（IB MYP · Final Grade 1–7）</label>
+    <div id="subjects"></div>
+
+    <label>老师评语（优点 + 改进点）</label>
+    <textarea id="teacherComment" placeholder="粘贴学校报告中的 Comments / 老师评语，报告将引用其优点与改进点"></textarea>
+
+    <div class="pdfzone" style="margin-top:14px">
+      <label style="margin-top:0">📄 上传学校 PDF 报告（自动抽取辅助填表）</label>
+      <input id="pdfFile" type="file" accept="application/pdf" />
+      <div id="pdfStatus"></div>
+      <p class="hint">解析失败也不会阻塞——未识别的字段可手动补。PDF 仅是“加速”，不是必需。</p>
+      <details style="margin-top:8px">
+        <summary class="muted" style="cursor:pointer;font-size:13px">无 PDF？粘贴报告原文自助识别</summary>
+        <textarea id="pasteText" placeholder="把 PDF 里的纯文本粘贴到这里" style="margin-top:8px"></textarea>
+        <button class="btn ghost sm" id="reparseBtn" type="button">粘贴原文重新识别</button>
+      </details>
+    </div>
+
+    <details class="adv">
+      <summary>进阶设置（可选）：粘贴 MiniMax Key 让 AI 润色结论</summary>
+      <label>MiniMax API Key（仅存本机浏览器会话，不上传、不写文件）</label>
+      <input id="miniKey" type="password" placeholder="粘贴后可让报告结论由 AI 生成" autocomplete="off" />
+    </details>
+
+    <button class="btn" id="generateBtn" type="button">生成诊断报告 →</button>
+  </section>
+
+  <!-- ============ 报告端 ============ -->
+  <section id="report">
+    <div class="card">
+      <h2><span class="dot"></span>AI 诊断报告</h2>
+      <div class="kpi" id="kpi"></div>
+
+      <div class="sec"><h3>① 竞争力总览与结论</h3><div id="rConclusion"></div></div>
+      <div class="sec"><h3>② IB 学科诊断</h3><div id="rDiag"></div></div>
+      <div class="sec"><h3>③ 优势与待改进点（引用老师评语）</h3><div id="rSwot"></div></div>
+      <div class="sec"><h3>④ 长期升学方向</h3><div id="rDirection"></div></div>
+      <div class="sec"><h3>⑤ 行动清单（校内资源优先）</h3><div id="rActions"></div></div>
+      <div class="sec"><h3>⑥ 年度路线图</h3><div id="rRoadmap"></div></div>
+
+      <button class="btn ghost" id="exportBtn" type="button">导出家长版 PDF</button>
+      <button class="btn ghost sm" id="backBtn" type="button" style="width:auto">← 返回修改</button>
+    </div>
+  </section>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+// ===APP_START===
+(function(){
+  "use strict";
+  var SUBJ = [
+    {key:'math',      name:'数学',   re:/mathematics|math|数学/i},
+    {key:'english',   name:'英语',   re:/english|英语/i},
+    {key:'science',   name:'科学',   re:/sciences?|科学/i},
+    {key:'chinese',   name:'中文',   re:/chinese|中文/i},
+    {key:'humanities',name:'人文社科',re:/individuals\s+and\s+societies|humanities|人文/i}
+  ];
+
+  // ---- 渲染学科输入区 ----
+  var subjectsBox = document.getElementById('subjects');
+  SUBJ.forEach(function(s){
+    var d = document.createElement('div');
+    d.className = 'subj'; d.id = 'subj_'+s.key;
+    d.innerHTML =
+      '<div class="row">'+
+        '<div><label style="margin:0 0 4px">'+s.name+'</label>'+
+          '<textarea id="subject_note_'+s.key+'" placeholder="评测明细 / criterion（如 A8 B7 C7 D7）"></textarea></div>'+
+        '<div class="grade"><label style="margin:0 0 4px">Final</label>'+
+          '<input id="subject_score_'+s.key+'" type="number" min="1" max="7" placeholder="1–7" inputmode="numeric" /></div>'+
+      '</div>';
+    subjectsBox.appendChild(d);
+  });
+
+  function v(id){ var el=document.getElementById(id); return el?el.value.trim():''; }
+  function setV(id,val){ var el=document.getElementById(id); if(el&&val!=null&&val!==''){ el.value=val; } }
+  function escapeHtml(t){ return (t||'').replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+
+  // ---- PDF 文本抽取（按 y 坐标近似分行，保留结构）----
+  async function extractPdfText(file){
+    if(typeof pdfjsLib==='undefined') throw new Error('PDF 组件未加载（请检查网络后刷新）');
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    var buf = await file.arrayBuffer();
+    var pdf = await pdfjsLib.getDocument({data:buf}).promise;
+    var lines = [];
+    for(var p=1; p<=pdf.numPages; p++){
+      var page = await pdf.getPage(p);
+      var tc = await page.getTextContent();
+      var rows = {};
+      tc.items.forEach(function(it){
+        if(!it.str) return;
+        var y = Math.round(it.transform[5]);
+        if(!rows[y]) rows[y] = [];
+        rows[y].push(it.str);
+      });
+      Object.keys(rows).map(Number).sort(function(a,b){return b-a;}).forEach(function(y){
+        lines.push(rows[y].join(' '));
+      });
+    }
+    return lines.join('\n');
+  }
+
+  // ---- 从文本回填表单 ----
+  function fillFromText(text){
+    var count=0, found=[];
+    var m;
+    m = text.match(/Student\s*Name\s*[:\-]\s*(.+)/i);
+    if(m){ setV('name', m[1].trim()); count++; found.push('姓名'); }
+
+    m = text.match(/(?<!final\s)grade\s*[:\-]\s*([^\n]+)/i);
+    if(m){ var g=m[1].match(/\d+/); if(g){ setV('grade', g[0]); count++; found.push('年级'); } }
+
+    m = text.match(/(.+?(?:school|academy|college|学校))\b/i);
+    if(m){ setV('school', m[1].trim()); count++; found.push('学校'); }
+    else { m = text.match(/(kang\s*chiao|kangqiao|康桥)[^\n]*/i); if(m){ setV('school', m[0].trim()); count++; found.push('学校'); } }
+
+    m = text.match(/nationality\s*[:\-]\s*([^\n]+)/i);
+    if(m){ setV('nationality', m[1].trim()); count++; found.push('国籍'); }
+
+    var lines = text.split('\n');
+    var idx = [];
+    lines.forEach(function(ln,i){
+      for(var k=0;k<SUBJ.length;k++){
+        if(SUBJ[k].re.test(ln)){ idx.push({i:i, f:SUBJ[k].key, name:SUBJ[k].name}); break; }
+      }
+    });
+    var commentsAll = [];
+    idx.forEach(function(sb,k){
+      var start = sb.i;
+      var end = (k+1<idx.length)? idx[k+1].i : lines.length;
+      var block = lines.slice(start,end).join('\n');
+      var fg = block.match(/final\s*grade\s*[:\-]?\s*([1-7])/i);
+      var crit = []; var cm; var cre=/([A-Da-d])\s*(\d{1,2})/g;
+      while((cm=cre.exec(block))!==null){ var n=parseInt(cm[2],10); if(n>=0&&n<=8){ crit.push(cm[1].toUpperCase()+n); } }
+      if(fg){ setV('subject_score_'+sb.f, fg[1]); count++; found.push(sb.name+'成绩'); }
+      if(crit.length){ setV('subject_note_'+sb.f, crit.join(' ')); }
+      var ci = block.toLowerCase().indexOf('comments');
+      if(ci>=0){
+        var ctext = block.slice(ci+'comments'.length).replace(/^[\s:\-]+/,'');
+        commentsAll.push(sb.name+'：'+ctext.trim());
+      }
+    });
+    if(commentsAll.length){ setV('teacherComment', commentsAll.join('\n')); count++; found.push('老师评语'); }
+
+    // 高亮学业成绩区
+    SUBJ.forEach(function(s){ var box=document.getElementById('subj_'+s.key); if(box && v('subject_score_'+s.key)){ box.classList.add('flash'); setTimeout(function(){box.classList.remove('flash');},2200); } });
+    return {count:count, found:found};
+  }
+
+  function setStatus(msg, kind){
+    var el=document.getElementById('pdfStatus');
+    el.className='show '+(kind||''); el.textContent=msg;
+  }
+
+  // ---- 上传处理 ----
+  document.getElementById('pdfFile').addEventListener('change', async function(e){
+    var file = e.target.files && e.target.files[0];
+    if(!file){ return; }
+    setStatus('正在解析 PDF…', '');
+    try{
+      var text = await extractPdfText(file);
+      var r = fillFromText(text);
+      if(r.count>0) setStatus('✅ 已识别 '+r.count+' 项：'+r.found.join('、')+'（未识别的字段可手动补）', 'ok');
+      else setStatus('未能自动匹配字段，请手动填写，或用下方“粘贴原文重新识别”。', 'warn');
+    }catch(err){
+      setStatus('PDF 解析失败：'+err.message+'。请手动填写，或粘贴原文重新识别。', 'err');
+    }
+  });
+
+  document.getElementById('reparseBtn').addEventListener('click', function(){
+    var t = v('pasteText');
+    if(!t){ setStatus('请先粘贴报告原文。', 'warn'); return; }
+    var r = fillFromText(t);
+    if(r.count>0) setStatus('✅ 已识别 '+r.count+' 项：'+r.found.join('、'), 'ok');
+    else setStatus('未能匹配，请检查原文格式或手动填写。', 'warn');
+  });
+
+  // ---- 读取档案 ----
+  function getProfile(){
+    var p = {name:v('name'), grade:v('grade'), school:v('school'), nationality:v('nationality'), teacherComment:v('teacherComment'), subjects:{}};
+    SUBJ.forEach(function(s){ p.subjects[s.key] = {score: parseInt(v('subject_score_'+s.key),10)||null, note: v('subject_note_'+s.key)}; });
+    return p;
+  }
+
+  function criteriaOf(note){ return (note||'').match(/[A-D](\d+)/g) || []; }
+
+  function ibDiag(p){
+    var html='<ul class="diag">'; var scores=[];
+    SUBJ.forEach(function(s){
+      var subj=p.subjects[s.key];
+      if(subj.score==null) return;
+      scores.push(subj.score);
+      var crit = criteriaOf(subj.note);
+      var strong = crit.filter(function(c){return +c.slice(1)>=8;}).map(function(c){return c[0];});
+      var weak = crit.filter(function(c){return +c.slice(1)<=6;}).map(function(c){return c[0];});
+      html += '<li><b>'+s.name+'</b>：Final Grade <b>'+subj.score+'/7</b>';
+      if(subj.note) html += ' <span class="muted">（评测明细 '+escapeHtml(subj.note)+'）</span>';
+      if(strong.length) html += ' <span class="tag ok">亮点 '+strong.join('')+'</span>';
+      if(weak.length) html += ' <span class="tag warn">待加强 '+weak.join('')+'</span>';
+      html += '</li>';
+    });
+    html += '</ul>';
+    var avg = scores.length ? (scores.reduce(function(a,b){return a+b;},0)/scores.length).toFixed(1) : '—';
+    return {html:html, avg:avg};
+  }
+
+  function conclusion(p, avg){
+    var lvl = avg==='—' ? '—' : (avg>=6.5?'顶尖':avg>=5.5?'优秀':avg>=4?'良好':'待提升');
+    var t = (p.name||'该生')+'（'+(p.school||'学校未填')+'，'+(p.grade?('G'+p.grade):'年级未填')+'）IB MYP 各科 Final Grade 平均 <b>'+avg+'/7</b>，整体学术竞争力 <b>'+lvl+'</b>。';
+    if(/德|german|germany/i.test(p.nationality||'')){
+      t += ' 作为 <b>德国籍</b> 学生，申请港校属 <b>Non-JUPAS 国际生池</b>，可同时布局欧陆低免学费备选（德国 / 欧陆公立大学）。';
+    } else if(p.nationality){ t += ' 国籍：'+escapeHtml(p.nationality)+'。'; }
+    return t;
+  }
+
+  function direction(p){
+    var t = '目标锚定 <b>港三全奖</b>（港大 / 港科大 / 港中文）。';
+    if(/德|german/i.test(p.nationality||'')){
+      t += ' 德国籍身份打开两条并行赛道：① 香港三大经 Non-JUPAS 国际生通道申请，全奖看学术 + 竞赛 + 领导力；② 欧陆（德国及邻国）公立大学低 / 免学费，作为高性价比备选。';
+    }
+    t += ' 学术上以 IB DP 高分为核心，数学 / 科学保持 7 分档，英语与人文均衡推进。';
+    return t;
+  }
+
+  var ACTION_MAP = {
+    math:['状元养成计划（数学拔尖）','AMC / 高阶数学社团'],
+    english:['语言中心 English Support','演讲与辩论社团'],
+    science:['科学竞赛社团（如 BC 生物 / 物理）','实验室科研体验'],
+    chinese:['语言中心 中文写作','校园创作 / 文学社团'],
+    humanities:['模拟联合国 / 人文社团','Service as Action 社会服务与行动']
+  };
+  function actions(p){
+    var items=[];
+    SUBJ.forEach(function(s){
+      var subj=p.subjects[s.key];
+      var weak = criteriaOf(subj.note).filter(function(c){return +c.slice(1)<=6;});
+      if(subj.score!=null && (subj.score<=6 || weak.length)){
+        (ACTION_MAP[s.key]||[]).forEach(function(r){ items.push(r); });
+      }
+    });
+    if(!items.length) items=['维持各科 7 分档，冲刺高阶竞赛（MK / AMC / BC 等）','补满 Service as Action 7/7（IB 硬性要求）'];
+    var html = '<p class="muted">优先校内资源，校外仅作补充：</p><ul>';
+    items.forEach(function(r){ html += '<li>🏫 校内：'+escapeHtml(r)+'</li>'; });
+    html += '<li>🌐 校外补充：暑期 FLL / 辩论营、托福 / 雅思备考、学科竞赛集训</li>';
+    html += '</ul>';
+    return html;
+  }
+
+  function roadmap(p){
+    var g = p.grade || '7';
+    return '<ol class="timeline">'+
+      '<li><b>G'+g+'（当前）</b>：巩固 IB MYP 各科 7 分档；补全 Service as Action；启动英语标化（TOEFL Junior → TOEFL）。</li>'+
+      '<li><b>G'+(+g+1)+'</b>：确定 DP 选课方向（Math AA HL / Bio HL 等）；高阶竞赛获奖；语言中心强化写作。</li>'+
+      '<li><b>G'+(+g+2)+'</b>：DP 前期冲刺；港三 / 欧陆申请素材积累（科研 / 领导力 / 推荐信）；提交 Non-JUPAS 申请。</li>'+
+      '</ol>';
+  }
+
+  function swot(p){
+    var c = p.teacherComment||'';
+    if(!c.trim()) return '<p class="muted">未录入老师评语（建议补填，报告将引用优点与改进点）。</p>';
+    var strengths=[], improve=[];
+    c.split(/[。\n.]/).forEach(function(seg){
+      seg=seg.trim(); if(!seg) return;
+      if(/excellent|strong|outstanding|强|优|突出|亮|good at|擅长|表扬/i.test(seg)) strengths.push(seg);
+      if(/need|should|improve|弱|待|需|加强|work on|建议|提升/i.test(seg)) improve.push(seg);
+    });
+    var h = '<blockquote>'+escapeHtml(c)+'</blockquote>';
+    h += '<p><b>优势信号：</b>'+(strengths.length?escapeHtml(strengths.join('；')):'（评语中未显式标注，建议结合分数判断）')+'</p>';
+    h += '<p><b>改进点信号：</b>'+(improve.length?escapeHtml(improve.join('；')):'（评语中未显式标注，建议结合分数判断）')+'</p>';
+    return h;
+  }
+
+  async function maybeEnrich(profile, key){
+    if(!key) return null;
+    try{
+      var prompt = '你是升学规划顾问。基于学生档案用一句中文给出竞争力结论（含身份维度）：'+JSON.stringify(profile);
+      var res = await fetch('https://api.minimax.chat/v1/text/chatcompletion_v2', {
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
+        body:JSON.stringify({model:'abab6.5s-chat', messages:[{role:'user',content:prompt}]})
+      });
+      var data = await res.json();
+      return (data && (data.reply || (data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content))) || null;
+    }catch(e){ return null; }
+  }
+
+  // ---- 生成报告 ----
+  document.getElementById('generateBtn').addEventListener('click', async function(){
+    var p = getProfile();
+    var diag = ibDiag(p);
+    var concl = conclusion(p, diag.avg);
+    var key = v('miniKey');
+    if(key){
+      var ai = await maybeEnrich(p, key);
+      if(ai) concl = '🤖 '+ai;
+    }
+    document.getElementById('kpi').innerHTML =
+      '<div class="box"><b>'+(diag.avg)+'</b><span>IB 平均 Final Grade</span></div>'+
+      '<div class="box"><b>'+SUBJ.filter(function(s){return p.subjects[s.key].score!=null;}).length+'/5</b><span>已录学科</span></div>'+
+      '<div class="box"><b>'+(/德|german/i.test(p.nationality||'')?'国际生池':'—')+'</b><span>申请身份</span></div>';
+
+    document.getElementById('rConclusion').innerHTML = '<p>'+concl+'</p>';
+    document.getElementById('rDiag').innerHTML = diag.html;
+    document.getElementById('rSwot').innerHTML = swot(p);
+    document.getElementById('rDirection').innerHTML = '<p>'+direction(p)+'</p>';
+    document.getElementById('rActions').innerHTML = actions(p);
+    document.getElementById('rRoadmap').innerHTML = roadmap(p);
+
+    document.getElementById('intake').style.display='none';
+    document.getElementById('report').style.display='block';
+    window.scrollTo(0,0);
+  });
+
+  document.getElementById('backBtn').addEventListener('click', function(){
+    document.getElementById('report').style.display='none';
+    document.getElementById('intake').style.display='block';
+    window.scrollTo(0,0);
+  });
+  document.getElementById('exportBtn').addEventListener('click', function(){ window.print(); });
+})();
+// ===APP_END===
+</script>
+</body>
+</html>
