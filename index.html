@@ -75,6 +75,14 @@
   ol.timeline{margin:6px 0; padding-left:20px}
   ol.timeline li{margin:8px 0}
   blockquote{margin:8px 0; padding:10px 12px; background:#f8f9fc; border-left:3px solid var(--line); border-radius:8px; font-size:13px; white-space:pre-wrap}
+  .swot2{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:4px}
+  .swot-col{border-radius:12px; padding:12px 14px}
+  .swot-col.ok{background:var(--ok-soft)}
+  .swot-col.warn{background:var(--warn-soft)}
+  .swot-h{font-weight:700; font-size:14px; margin-bottom:6px}
+  .swot-col ul{margin:0; padding-left:18px}
+  .swot-col li{margin:5px 0; font-size:14px}
+  @media(max-width:480px){ .swot2{grid-template-columns:1fr} }
   .kpi{display:flex; gap:10px; flex-wrap:wrap; margin:8px 0}
   .kpi .box{flex:1; min-width:120px; background:var(--accent-soft); border-radius:12px; padding:12px; text-align:center}
   .kpi .box b{display:block; font-size:22px; color:var(--accent)}
@@ -221,8 +229,8 @@
   function fillFromText(text){
     var count=0, found=[];
     var m;
-    m = text.match(/Student\s*Name\s*[:\-]\s*(.+)/i);
-    if(m){ setV('name', m[1].trim()); count++; found.push('姓名'); }
+    m = text.match(/Student\s*Name\s*[:\-]\s*([^\n]*?)(?=\s+Student\s+ID\s*:|$)/i);
+    if(m){ var nm=m[1].trim(); if(nm){ setV('name', nm); count++; found.push('姓名'); } }
 
     m = text.match(/(?<!final\s)grade\s*[:\-]\s*([^\n]+)/i);
     if(m){ var g=m[1].match(/\d+/); if(g){ setV('grade', g[0]); count++; found.push('年级'); } }
@@ -234,33 +242,79 @@
     m = text.match(/nationality\s*[:\-]\s*([^\n]+)/i);
     if(m){ setV('nationality', m[1].trim()); count++; found.push('国籍'); }
 
+    // ---- 学业成绩：优先解析汇总表（Final + A/B/C/D 四标准）----
     var lines = text.split('\n');
-    var idx = [];
-    lines.forEach(function(ln,i){
+    var sumStart = -1;
+    for(var si=0; si<lines.length; si++){ if(/achievement levels/i.test(lines[si]) && /final grade/i.test(lines[si])){ sumStart=si; break; } }
+    var sumEnd = lines.length;
+    if(sumStart>=0){ for(var ei=sumStart; ei<lines.length; ei++){ if(/interdisciplinary/i.test(lines[ei])){ sumEnd=ei; break; } } }
+    var scores = {};
+    if(sumStart>=0){
+      for(var i=sumStart; i<sumEnd; i++){
+        var ln=lines[i].trim(); var key=null;
+        for(var k=0;k<SUBJ.length;k++){ if(SUBJ[k].re.test(ln)){ key=SUBJ[k].key; break; } }
+        if(!key) continue;
+        var fg=null, abcd=null;
+        for(var j=i+1; j<Math.min(i+6,lines.length); j++){
+          var t=lines[j].trim();
+          var m1=t.match(/^(\d{1,2})$/); if(m1){ var n=parseInt(m1[1],10); if(n>=1&&n<=7&&fg==null) fg=n; }
+          var m4=t.match(/^(\d)\s+(\d)\s+(\d)\s+(\d)$/); if(m4) abcd=[+m4[1],+m4[2],+m4[3],+m4[4]];
+        }
+        if(fg!=null || abcd!=null) scores[key]={fg:fg, abcd:abcd};
+      }
+    }
+    // 兜底：无汇总表时退化为逐行邻近匹配（兼容其他 IB 报告格式）
+    if(Object.keys(scores).length===0){
+      var idx=[];
+      lines.forEach(function(ln,i){ for(var k=0;k<SUBJ.length;k++){ if(SUBJ[k].re.test(ln)){ idx.push({i:i,f:SUBJ[k].key}); break; } } });
+      idx.forEach(function(sb,bi){
+        var end=(bi+1<idx.length)?idx[bi+1].i:lines.length;
+        var block=lines.slice(sb.i,end).join('\n');
+        var fg=block.match(/final\s*grade\s*[:\-]?\s*([1-7])/i);
+        var cMap={A:null,B:null,C:null,D:null}; var cm; var cre=/([A-Da-d])\s*[:.\-]?\s*(\d{1,2})/g;
+        while((cm=cre.exec(block))!==null){ var L=cm[1].toUpperCase(); var n=parseInt(cm[2],10); if((L in cMap)&&n>=0&&n<=8) cMap[L]=n; }
+        if(cMap.A==null||cMap.B==null||cMap.C==null||cMap.D==null){
+          var bn=block.replace(/final\s*grade\s*[:\-]?\s*\d+/i,' '); var nums=[]; var nm; var nre=/\b(\d{1,2})\b/g;
+          while((nm=nre.exec(bn))!==null){ var nx=parseInt(nm[1],10); if(nx>=0&&nx<=8) nums.push(nx); }
+          var ni=0; ['A','B','C','D'].forEach(function(K){ if(cMap[K]==null&&ni<nums.length) cMap[K]=nums[ni++]; });
+        }
+        scores[sb.f]={fg: fg?fg[1]:null, abcd:null, cMap:cMap};
+      });
+    }
+    SUBJ.forEach(function(s){
+      var r=scores[s.key]; if(!r) return;
+      if(r.fg!=null){ setV('subject_score_'+s.key, r.fg); count++; found.push(s.name+'成绩'); }
+      var ab = (r.abcd)? r.abcd : (r.cMap? [r.cMap.A,r.cMap.B,r.cMap.C,r.cMap.D] : null);
+      if(ab){ ['A','B','C','D'].forEach(function(K,ki){ if(ab[ki]!=null) setV('subject_'+K.toLowerCase()+'_'+s.key, ab[ki]); }); count++; found.push(s.name+'四标准'); }
+    });
+
+    // ---- 老师评语：从详情段按"最近科目头"归属，跳过分页噪声 ----
+    var NOISE=/Henry\s*Mu|Kang Chiao|Academic Yearly Report|^Page \d|No\.\s*\d|Xihuan|Huaqiao|Kunshan|Jiangsu|215332|Interdisciplinary|Boundaries|Grade\s+Descriptor|^\s*$/i;
+    var headers=[];
+    for(var hi=sumEnd; hi<lines.length; hi++){
       for(var k=0;k<SUBJ.length;k++){
-        if(SUBJ[k].re.test(ln)){ idx.push({i:i, f:SUBJ[k].key, name:SUBJ[k].name}); break; }
+        if(SUBJ[k].re.test(lines[hi]) && (/g7\s/i.test(lines[hi]) || /phase\s*3/i.test(lines[hi]))){ headers.push({i:hi,key:SUBJ[k].key}); break; }
+      }
+    }
+    var commentsMap={};
+    headers.forEach(function(H,idx){
+      var nextPos=(idx+1<headers.length)? headers[idx+1].i : lines.length;
+      for(var i=H.i; i<nextPos; i++){
+        if(/comments?\s*:/i.test(lines[i])){
+          var txt=[];
+          for(var j=i+1; j<Math.min(nextPos, i+25); j++){
+            var l=lines[j].trim();
+            if(/^[A-Z][a-z]+ [A-Z][a-z]+:/.test(l) && /G7|Phase|Language|Individual|Science|Math|Music|Visual|Physical|Design|Adventure/i.test(l)) break;
+            if(/^\s*Comments:\s*$/i.test(l)) break;
+            if(NOISE.test(l)){ if(txt.length) break; else continue; }
+            txt.push(l);
+          }
+          commentsMap[H.key]=txt.join(' ').replace(/\s+/g,' ').trim(); break;
+        }
       }
     });
-    var commentsAll = [];
-    idx.forEach(function(sb,k){
-      var start = sb.i;
-      var end = (k+1<idx.length)? idx[k+1].i : lines.length;
-      var block = lines.slice(start,end).join('\n');
-      var fg = block.match(/final\s*grade\s*[:\-]?\s*([1-7])/i);
-      var cMap={A:null,B:null,C:null,D:null}; var cm; var cre=/([A-Da-d])\s*(\d{1,2})/g;
-      while((cm=cre.exec(block))!==null){ var L=cm[1].toUpperCase(); var n=parseInt(cm[2],10); if((L in cMap)&&n>=0&&n<=8){ cMap[L]=n; } }
-      if(fg){ setV('subject_score_'+sb.f, fg[1]); count++; found.push(sb.name+'成绩'); }
-      if(cMap.A!=null){ setV('subject_a_'+sb.f, cMap.A); }
-      if(cMap.B!=null){ setV('subject_b_'+sb.f, cMap.B); }
-      if(cMap.C!=null){ setV('subject_c_'+sb.f, cMap.C); }
-      if(cMap.D!=null){ setV('subject_d_'+sb.f, cMap.D); }
-      if(cMap.A!=null||cMap.B!=null||cMap.C!=null||cMap.D!=null){ count++; found.push(sb.name+'评测'); }
-      var ci = block.toLowerCase().indexOf('comments');
-      if(ci>=0){
-        var ctext = block.slice(ci+'comments'.length).replace(/^[\s:\-]+/,'');
-        commentsAll.push(sb.name+'：'+ctext.trim());
-      }
-    });
+    var commentsAll=[];
+    SUBJ.forEach(function(s){ if(commentsMap[s.key]) commentsAll.push(s.name+'：'+commentsMap[s.key]); });
     if(commentsAll.length){ setV('teacherComment', commentsAll.join('\n')); count++; found.push('老师评语'); }
 
     // 高亮学业成绩区
@@ -414,35 +468,87 @@
     if(!out) out = seg.trim();
     return out.charAt(0).toUpperCase()+out.slice(1);
   }
+  // 优点主题：把一句话归并到"主要主题"，避免逐句罗列、中英混杂
+  function mapTheme(bullet){
+    var rules = [
+      [/书写|handwrit|字迹/i, '书写工整度突出'],
+      [/写作|文学|创作|creative|write|创作满分|表达力|expression/i, '表达与创作力突出'],
+      [/分析|探究|批判|思维|推理|analyt|inquir|critical|thinking|reflect|infer/i, '分析推理与探究能力强'],
+      [/prioriti|plan|visuali[sz]e steps|planning tools|目标设定|规划/i, '规划与组织能力强'],
+      [/cooperat|helpful|peer|sociali[sz]|group|volunteer|classroom leader|above and beyond|帮扶|助人|合作/i, '合作助人、课堂领导力'],
+      [/participat|discuss|课堂|interaction|exchange thoughts|发言|互动/i, '课堂参与积极'],
+      [/knowledge|skilled|capable|exam results|subject knowledge|achievement|学业|基础|扎实|知识面广/i, '学业基础扎实'],
+      [/leader|leadership|领导力/i, '领导力突出'],
+      [/progress|motivat|independent learner|self-motivat|主动|进步/i, '自主学习主动、进步明显'],
+      [/confident|enthusiastic|积极/i, '学习态度积极']
+    ];
+    for(var i=0;i<rules.length;i++){ if(rules[i][0].test(bullet)) return rules[i][1]; }
+    return bullet;
+  }
+  // 待改进主题：明确"可加强"措辞，与优点列区分
+  function improveTheme(raw){
+    if(/书写|handwrit|字迹/i.test(raw)) return '书写工整度待提升';
+    if(/broaden|vocabulary|词汇/i.test(raw)) return '英语词汇量有待拓展';
+    if(/structur|organi[sz]ing sources|书面结构/i.test(raw)) return '书面结构与表达待加强';
+    if(/lab|experiment|实验|报告|depth/i.test(raw)) return '科学实验与报告深度待提升';
+    if(/prioriti|plan|目标|规划/i.test(raw)) return '规划与目标设定可进一步加强';
+    if(/participat|discuss|interaction|exchange|发言|互动|交流/i.test(raw)) return '课堂参与与交流可进一步加强';
+    if(/risk|challenging|挑战|探索新/i.test(raw)) return '可尝试更高难度挑战';
+    return '可在'+(mapTheme(condense(raw)))+'方面继续加强';
+  }
+  function rootOf(t){
+    if(/自主/.test(t)) return '自主';
+    if(/规划/.test(t)) return '规划';
+    if(/书写|字迹/.test(t)) return '书写';
+    if(/词汇/.test(t)) return '词汇';
+    if(/表达|创作|写作/.test(t)) return '表达';
+    if(/分析|批判|探究|推理/.test(t)) return '分析';
+    if(/合作|助人|领导/.test(t)) return '合作';
+    if(/参与|互动|交流|发言/.test(t)) return '参与';
+    if(/学业|基础|知识/.test(t)) return '学业';
+    if(/实验|科学/.test(t)) return '科学';
+    if(/积极|态度/.test(t)) return '态度';
+    return t;
+  }
   function summarizeComments(p){
     var c = p.teacherComment||'';
     if(!c.trim()) return null;
     var strengths=[], improve=[];
     c.split(/\n/).forEach(function(line){
       var ci = line.indexOf('：');
-      var subj = (ci>=0)? line.slice(0,ci).trim() : '';
       var text = (ci>=0)? line.slice(ci+1) : line;
       text.split(/[.!?。！？]+/).forEach(function(raw){
         raw = raw.trim(); if(!raw) return;
-        var isStr = /excellent|strong|outstanding|good|great|亮|优|强|突出|擅长|表扬|满分|top|positive/i.test(raw);
-        var isImp = /need|should|improve|weak|待|需|加强|work on|建议|提升|lacks|develop|broaden|depth/i.test(raw);
-        var bullet = (subj? (subj+'·') : '') + condense(raw);
-        if(isImp) improve.push(bullet);
-        else strengths.push(bullet); // 中性句默认归优点
+        // 过滤泛化评语（以 "students" 为主语、描述全班而非 Henry）
+        if(/^(in \w+ (this|the) year, students|students (focused|learned|explored|started|were encouraged))/i.test(raw)) return;
+        var isImp = /need|should|improve|weak|待|需|加强|work on|建议|提升|lacks|develop|broaden|depth|further|more|encouraged to|encourage/i.test(raw);
+        var theme = mapTheme(condense(raw));
+        if(theme === condense(raw)) return; // 未命中主题（多为英文原句），跳过以免混杂
+        if(isImp) improve.push(improveTheme(raw));
+        else strengths.push(theme); // 中性句默认归优点
       });
     });
-    return {strengths: uniq(strengths), improve: uniq(improve)};
+    var st = uniq(strengths).slice(0,3);
+    var im = uniq(improve);
+    // 移除与优点同根的待改进项，避免“既夸又批”的自相矛盾（如数学夸规划、英语说规划待加强）
+    var sRoots = st.map(rootOf);
+    im = im.filter(function(x){ return sRoots.indexOf(rootOf(x))<0; });
+    // 具体弱点（待提升/待加强/待深入）优先，确保不被截断
+    im.sort(function(a,b){ var ca=/待提升|待加强|待深入/.test(a)?0:1, cb=/待提升|待加强|待深入/.test(b)?0:1; return ca-cb; });
+    im = im.slice(0,3);
+    return { strengths: st, improve: im };
   }
   function swot(p){
     var s = summarizeComments(p);
     if(!s) return '<p class="muted">未录入老师评语（建议补填，报告将引用优点与改进点）。</p>';
-    var h = '';
-    h += '<p><b>🌟 主要优点</b></p><ul class="diag">';
+    var h = '<div class="swot2">';
+    h += '<div class="swot-col ok"><div class="swot-h">🌟 主要优点</div><ul class="diag">';
     h += s.strengths.length ? s.strengths.map(function(x){return '<li>'+escapeHtml(x)+'</li>';}).join('') : '<li class="muted">评语中未显式标注优点</li>';
-    h += '</ul>';
-    h += '<p><b>🔧 主要待改进点</b></p><ul class="diag">';
+    h += '</ul></div>';
+    h += '<div class="swot-col warn"><div class="swot-h">🔧 主要待改进点</div><ul class="diag">';
     h += s.improve.length ? s.improve.map(function(x){return '<li>'+escapeHtml(x)+'</li>';}).join('') : '<li class="muted">评语中未显式标注待改进点（可结合分数偏弱项判断）</li>';
-    h += '</ul>';
+    h += '</ul></div>';
+    h += '</div>';
     return h;
   }
 
