@@ -39,8 +39,11 @@
   .grid2{display:grid; grid-template-columns:1fr 1fr; gap:10px}
   .subj{border:1px dashed var(--line); border-radius:12px; padding:12px; margin-top:10px; transition:box-shadow .4s, border-color .4s}
   .subj.flash{border-color:var(--accent); box-shadow:0 0 0 4px var(--accent-soft); background:var(--accent-soft)}
-  .subj .row{display:grid; grid-template-columns:1fr 110px; gap:10px; align-items:end}
+  .subj .row{display:grid; grid-template-columns:1fr 96px; gap:10px; align-items:end}
   .subj .row .grade input{text-align:center; font-weight:700}
+  .subj .critgrid{display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin-top:2px}
+  .subj .critgrid input{text-align:center; font-size:14px; padding:8px 4px}
+  .crit{display:inline-block; font-size:12px; padding:2px 9px; border-radius:999px; margin:0 2px; font-weight:600}
   .btn{
     display:inline-flex; align-items:center; justify-content:center; gap:6px;
     border:none; border-radius:12px; padding:13px 18px; font-size:15px; font-weight:600;
@@ -106,7 +109,7 @@
       <div><label>国籍</label><input id="nationality" placeholder="如 德国 / German" /></div>
     </div>
 
-    <label>学业成绩（IB MYP · Final Grade 1–7）</label>
+    <label>学业成绩（IB MYP · 四标准 A/B/C/D 各 0–8 + Final 1–7）</label>
     <div id="subjects"></div>
 
     <label>老师评语（优点 + 改进点）</label>
@@ -141,7 +144,7 @@
 
       <div class="sec"><h3>① 竞争力总览与结论</h3><div id="rConclusion"></div></div>
       <div class="sec"><h3>② IB 学科诊断</h3><div id="rDiag"></div></div>
-      <div class="sec"><h3>③ 优势与待改进点（引用老师评语）</h3><div id="rSwot"></div></div>
+      <div class="sec"><h3>③ 优势与待改进点（总结自老师评语）</h3><div id="rSwot"></div></div>
       <div class="sec"><h3>④ 长期升学方向</h3><div id="rDirection"></div></div>
       <div class="sec"><h3>⑤ 行动清单（校内资源优先）</h3><div id="rActions"></div></div>
       <div class="sec"><h3>⑥ 年度路线图</h3><div id="rRoadmap"></div></div>
@@ -172,9 +175,14 @@
     d.className = 'subj'; d.id = 'subj_'+s.key;
     d.innerHTML =
       '<div class="row">'+
-        '<div><label style="margin:0 0 4px">'+s.name+'</label>'+
-          '<textarea id="subject_note_'+s.key+'" placeholder="评测明细 / criterion（如 A8 B7 C7 D7）"></textarea></div>'+
-        '<div class="grade"><label style="margin:0 0 4px">Final</label>'+
+        '<div><label style="margin:0 0 4px">'+s.name+'（四标准 A/B/C/D 各 0–8）</label>'+
+          '<div class="critgrid">'+
+            '<input id="subject_a_'+s.key+'" type="number" min="0" max="8" placeholder="A" inputmode="numeric" />'+
+            '<input id="subject_b_'+s.key+'" type="number" min="0" max="8" placeholder="B" inputmode="numeric" />'+
+            '<input id="subject_c_'+s.key+'" type="number" min="0" max="8" placeholder="C" inputmode="numeric" />'+
+            '<input id="subject_d_'+s.key+'" type="number" min="0" max="8" placeholder="D" inputmode="numeric" />'+
+          '</div></div>'+
+        '<div class="grade"><label style="margin:0 0 4px">Final (1–7)</label>'+
           '<input id="subject_score_'+s.key+'" type="number" min="1" max="7" placeholder="1–7" inputmode="numeric" /></div>'+
       '</div>';
     subjectsBox.appendChild(d);
@@ -239,10 +247,14 @@
       var end = (k+1<idx.length)? idx[k+1].i : lines.length;
       var block = lines.slice(start,end).join('\n');
       var fg = block.match(/final\s*grade\s*[:\-]?\s*([1-7])/i);
-      var crit = []; var cm; var cre=/([A-Da-d])\s*(\d{1,2})/g;
-      while((cm=cre.exec(block))!==null){ var n=parseInt(cm[2],10); if(n>=0&&n<=8){ crit.push(cm[1].toUpperCase()+n); } }
+      var cMap={A:null,B:null,C:null,D:null}; var cm; var cre=/([A-Da-d])\s*(\d{1,2})/g;
+      while((cm=cre.exec(block))!==null){ var L=cm[1].toUpperCase(); var n=parseInt(cm[2],10); if((L in cMap)&&n>=0&&n<=8){ cMap[L]=n; } }
       if(fg){ setV('subject_score_'+sb.f, fg[1]); count++; found.push(sb.name+'成绩'); }
-      if(crit.length){ setV('subject_note_'+sb.f, crit.join(' ')); }
+      if(cMap.A!=null){ setV('subject_a_'+sb.f, cMap.A); }
+      if(cMap.B!=null){ setV('subject_b_'+sb.f, cMap.B); }
+      if(cMap.C!=null){ setV('subject_c_'+sb.f, cMap.C); }
+      if(cMap.D!=null){ setV('subject_d_'+sb.f, cMap.D); }
+      if(cMap.A!=null||cMap.B!=null||cMap.C!=null||cMap.D!=null){ count++; found.push(sb.name+'评测'); }
       var ci = block.toLowerCase().indexOf('comments');
       if(ci>=0){
         var ctext = block.slice(ci+'comments'.length).replace(/^[\s:\-]+/,'');
@@ -287,25 +299,40 @@
   // ---- 读取档案 ----
   function getProfile(){
     var p = {name:v('name'), grade:v('grade'), school:v('school'), nationality:v('nationality'), teacherComment:v('teacherComment'), subjects:{}};
-    SUBJ.forEach(function(s){ p.subjects[s.key] = {score: parseInt(v('subject_score_'+s.key),10)||null, note: v('subject_note_'+s.key)}; });
+    SUBJ.forEach(function(s){
+      p.subjects[s.key] = {
+        score: parseInt(v('subject_score_'+s.key),10)||null,
+        a: parseInt(v('subject_a_'+s.key),10)||null,
+        b: parseInt(v('subject_b_'+s.key),10)||null,
+        c: parseInt(v('subject_c_'+s.key),10)||null,
+        d: parseInt(v('subject_d_'+s.key),10)||null
+      };
+    });
     return p;
   }
 
-  function criteriaOf(note){ return (note||'').match(/[A-D](\d+)/g) || []; }
+  function critList(subj){
+    var out=[];
+    [['A',subj.a],['B',subj.b],['C',subj.c],['D',subj.d]].forEach(function(pair){
+      if(pair[1]!=null) out.push({L:pair[0], n:pair[1]});
+    });
+    return out;
+  }
 
+  function critChip(c){
+    var cls = c.n>=8?'ok':(c.n<=6?'warn':'');
+    return '<span class="crit '+(cls?('tag '+cls):'muted')+'">'+c.L+c.n+'</span>';
+  }
   function ibDiag(p){
     var html='<ul class="diag">'; var scores=[];
     SUBJ.forEach(function(s){
       var subj=p.subjects[s.key];
-      if(subj.score==null) return;
-      scores.push(subj.score);
-      var crit = criteriaOf(subj.note);
-      var strong = crit.filter(function(c){return +c.slice(1)>=8;}).map(function(c){return c[0];});
-      var weak = crit.filter(function(c){return +c.slice(1)<=6;}).map(function(c){return c[0];});
-      html += '<li><b>'+s.name+'</b>：Final Grade <b>'+subj.score+'/7</b>';
-      if(subj.note) html += ' <span class="muted">（评测明细 '+escapeHtml(subj.note)+'）</span>';
-      if(strong.length) html += ' <span class="tag ok">亮点 '+strong.join('')+'</span>';
-      if(weak.length) html += ' <span class="tag warn">待加强 '+weak.join('')+'</span>';
+      var cl = critList(subj);
+      if(subj.score==null && cl.length===0) return;
+      if(subj.score!=null) scores.push(subj.score);
+      html += '<li><b>'+s.name+'</b>';
+      if(subj.score!=null) html += '：Final <b>'+subj.score+'/7</b>';
+      if(cl.length) html += '　<span class="muted">评测明细</span> '+cl.map(critChip).join(' ');
       html += '</li>';
     });
     html += '</ul>';
@@ -342,7 +369,7 @@
     var items=[];
     SUBJ.forEach(function(s){
       var subj=p.subjects[s.key];
-      var weak = criteriaOf(subj.note).filter(function(c){return +c.slice(1)<=6;});
+      var weak = critList(subj).filter(function(c){return c.n<=6;});
       if(subj.score!=null && (subj.score<=6 || weak.length)){
         (ACTION_MAP[s.key]||[]).forEach(function(r){ items.push(r); });
       }
@@ -364,18 +391,58 @@
       '</ol>';
   }
 
-  function swot(p){
+  function uniq(arr){ var seen={}, out=[]; arr.forEach(function(x){ if(!seen[x]){seen[x]=1; out.push(x);} }); return out; }
+  function condense(seg){
+    var dict = [
+      [/strong analytical ability/i,'分析能力强'],
+      [/excellent participation/i,'课堂参与积极'],
+      [/good inquiry/i,'探究能力强'],
+      [/outstanding critical thinking/i,'批判性思维突出'],
+      [/critical thinking/i,'批判性思维'],
+      [/structured presentation/i,'结构化表达'],
+      [/broaden vocabulary/i,'拓展词汇量'],
+      [/more depth in lab write[\s\-]*ups/i,'实验报告更深入'],
+      [/literary criticism/i,'文学批评结构'],
+      [/expression/i,'表达'],
+      [/creativity|creative/i,'创造力']
+    ];
+    var out = seg;
+    dict.forEach(function(d){ out = out.replace(d[0], d[1]); });
+    out = out.replace(/^(?:(?:henry|the student|student|he|she|老师|该生|shows|has|demonstrates|exhibits|is|displays|建议|需|需要|should|needs to|needs|develops?|work on|must|to)\s+)+/i,'');
+    out = out.replace(/^[建议需加强提升改善待改进补充]+/,'');
+    out = out.replace(/\s+/g,' ').trim();
+    if(!out) out = seg.trim();
+    return out.charAt(0).toUpperCase()+out.slice(1);
+  }
+  function summarizeComments(p){
     var c = p.teacherComment||'';
-    if(!c.trim()) return '<p class="muted">未录入老师评语（建议补填，报告将引用优点与改进点）。</p>';
+    if(!c.trim()) return null;
     var strengths=[], improve=[];
-    c.split(/[。\n.]/).forEach(function(seg){
-      seg=seg.trim(); if(!seg) return;
-      if(/excellent|strong|outstanding|强|优|突出|亮|good at|擅长|表扬/i.test(seg)) strengths.push(seg);
-      if(/need|should|improve|弱|待|需|加强|work on|建议|提升/i.test(seg)) improve.push(seg);
+    c.split(/\n/).forEach(function(line){
+      var ci = line.indexOf('：');
+      var subj = (ci>=0)? line.slice(0,ci).trim() : '';
+      var text = (ci>=0)? line.slice(ci+1) : line;
+      text.split(/[.!?。！？]+/).forEach(function(raw){
+        raw = raw.trim(); if(!raw) return;
+        var isStr = /excellent|strong|outstanding|good|great|亮|优|强|突出|擅长|表扬|满分|top|positive/i.test(raw);
+        var isImp = /need|should|improve|weak|待|需|加强|work on|建议|提升|lacks|develop|broaden|depth/i.test(raw);
+        var bullet = (subj? (subj+'·') : '') + condense(raw);
+        if(isImp) improve.push(bullet);
+        else strengths.push(bullet); // 中性句默认归优点
+      });
     });
-    var h = '<blockquote>'+escapeHtml(c)+'</blockquote>';
-    h += '<p><b>优势信号：</b>'+(strengths.length?escapeHtml(strengths.join('；')):'（评语中未显式标注，建议结合分数判断）')+'</p>';
-    h += '<p><b>改进点信号：</b>'+(improve.length?escapeHtml(improve.join('；')):'（评语中未显式标注，建议结合分数判断）')+'</p>';
+    return {strengths: uniq(strengths), improve: uniq(improve)};
+  }
+  function swot(p){
+    var s = summarizeComments(p);
+    if(!s) return '<p class="muted">未录入老师评语（建议补填，报告将引用优点与改进点）。</p>';
+    var h = '';
+    h += '<p><b>🌟 主要优点</b></p><ul class="diag">';
+    h += s.strengths.length ? s.strengths.map(function(x){return '<li>'+escapeHtml(x)+'</li>';}).join('') : '<li class="muted">评语中未显式标注优点</li>';
+    h += '</ul>';
+    h += '<p><b>🔧 主要待改进点</b></p><ul class="diag">';
+    h += s.improve.length ? s.improve.map(function(x){return '<li>'+escapeHtml(x)+'</li>';}).join('') : '<li class="muted">评语中未显式标注待改进点（可结合分数偏弱项判断）</li>';
+    h += '</ul>';
     return h;
   }
 
