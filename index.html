@@ -83,6 +83,9 @@
   .swot-col ul{margin:0; padding-left:18px}
   .swot-col li{margin:5px 0; font-size:14px}
   @media(max-width:480px){ .swot2{grid-template-columns:1fr} }
+  ul.actions{margin:6px 0 0; padding-left:20px}
+  ul.actions li{margin:9px 0; font-size:14px; line-height:1.45}
+  ul.actions li .reason{display:block; font-size:12.5px; color:var(--muted); margin-top:3px; padding-left:2px; border-left:2px solid var(--line)}
   .kpi{display:flex; gap:10px; flex-wrap:wrap; margin:8px 0}
   .kpi .box{flex:1; min-width:120px; background:var(--accent-soft); border-radius:12px; padding:12px; text-align:center}
   .kpi .box b{display:block; font-size:22px; color:var(--accent)}
@@ -548,23 +551,50 @@
   };
   function actions(p){
     var items=[];
+    function add(title, reason){ items.push({title:title, reason:reason}); }
+    // 1) 学科弱项（基于录入的四标准 / Final）
     SUBJ.forEach(function(s){
       var subj=p.subjects[s.key];
+      if(subj.score==null && !subj.a && !subj.b && !subj.c && !subj.d) return;
       var weak = critList(subj).filter(function(c){return c.n<=6;});
-      if(subj.score!=null && (subj.score<=6 || weak.length)){
-        (ACTION_MAP[s.key]||[]).forEach(function(r){ items.push(r); });
-      }
+      if(!(subj.score!=null && subj.score<=6) && !weak.length) return;
+      var parts=[];
+      if(subj.score!=null && subj.score<=6) parts.push(s.name+' Final Grade '+subj.score+'/7（低于 7 分档）');
+      if(weak.length) parts.push(s.name+' 四标准弱项：'+weak.map(function(c){return c.L+c.n;}).join('、'));
+      var reason = '基于档案录入：'+parts.join('；')+'。';
+      (ACTION_MAP[s.key]||[]).forEach(function(r){ add('校内 · '+r, reason); });
     });
+    // 2) 升学方向联动（基于录入方向 + 标化字段）
     var dirTxt = (p.direction||[]).join('、');
-    if(/美Top30/.test(dirTxt) && !p.sat) items.push('备考 SAT / ACT（美本 Top30 硬通货）');
-    if((/美|港|新|加|澳/.test(dirTxt)) && !(p.toefl||p.toeflJunior||p.ielts)) items.push('启动英语标化（TOEFL / IELTS）备考');
-    if(p.saCount && parseInt(p.saCount,10)<7) items.push('补满 Service as Action '+p.saCount+'/7（IB 硬性要求，当前未完成，优先级高）');
-    if(p.competitions && p.competitions.length) items.push('沉淀已获奖项为申请素材：'+p.competitions.map(function(c){return c.name+(c.res?'（'+c.res+'）':'');}).join('、'));
-    if(p.activities && p.activities.length) items.push('写入 CAS / 活动列表：'+p.activities.map(function(a){return a.name;}).join('、'));
-    if(!items.length) items=['维持各科 7 分档，冲刺高阶竞赛（MK / AMC / BC 等）','补满 Service as Action 7/7（IB 硬性要求）'];
-    var html = '<p class="muted">优先校内资源，校外仅作补充：</p><ul>';
-    items.forEach(function(r){ html += '<li>🏫 校内：'+escapeHtml(r)+'</li>'; });
-    html += '<li>🌐 校外补充：暑期 FLL / 辩论营、托福 / 雅思备考、学科竞赛集训</li>';
+    if(/美Top30/.test(dirTxt) && !p.sat){
+      add('备考 SAT / ACT（美本 Top30 硬通货）', '升学方向含「美 Top30」，但档案未填写 SAT/ACT 成绩——该方向几乎都要求标化，缺失将直接削弱竞争力。');
+    }
+    if((/美|港|新|加|澳/.test(dirTxt)) && !(p.toefl||p.toeflJunior||p.ielts)){
+      add('启动英语标化备考（TOEFL / IELTS）', '升学方向含「'+dirTxt.replace(/、?欧陆.*$/,'')+'」等对英语标化有要求的地区，但档案未填任何英语成绩（TOEFL Junior / TOEFL / IELTS）。');
+    }
+    // 3) Service as Action（基于录入完成度）
+    if(p.saCount && parseInt(p.saCount,10)<7){
+      add('补满 Service as Action '+p.saCount+'/7', '档案 Service as Action 完成度 = '+p.saCount+'/7，未达 IB 硬性 7/7 要求，将影响 DP 阶段升学资格评估。');
+    }
+    // 4) 竞赛（基于录入）
+    if(p.competitions && p.competitions.length){
+      add('沉淀已获奖项为申请素材', '档案已录入 '+p.competitions.length+' 项比赛：'+p.competitions.map(function(c){return c.name+(c.res?'（'+c.res+'）':'');}).join('、')+'——需在文书与简历中重点突出。');
+    }
+    // 5) 活动（基于录入）
+    if(p.activities && p.activities.length){
+      add('写入 CAS / 活动列表', '档案已录入 '+p.activities.length+' 项活动/社团：'+p.activities.map(function(a){return a.name;}).join('、')+'——构成申请活动主线。');
+    }
+    // 兜底
+    if(!items.length){
+      add('维持各科 7 分档，冲刺高阶竞赛', '档案各学科 Final 均 ≥7 且四标准无 ≤6 弱项，暂无紧急学术补救；建议持续拔高。');
+      add('补满 Service as Action 7/7', 'IB 硬性要求 7/7；即便当前无弱项，也应尽早达标以满足升学资格。');
+    }
+    var html = '<p class="muted">以下行动按「档案暴露的风险」排序，优先校内资源。每条均标注触发原因：</p><ul class="actions">';
+    items.forEach(function(it){
+      html += '<li><b>'+escapeHtml(it.title)+'</b>';
+      if(it.reason) html += '<span class="reason">原因：'+escapeHtml(it.reason)+'</span>';
+      html += '</li>';
+    });
     html += '</ul>';
     return html;
   }
