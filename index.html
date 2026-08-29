@@ -87,6 +87,16 @@
   .kpi .box{flex:1; min-width:120px; background:var(--accent-soft); border-radius:12px; padding:12px; text-align:center}
   .kpi .box b{display:block; font-size:22px; color:var(--accent)}
   .kpi .box span{font-size:12px; color:var(--muted)}
+  .chips{display:flex; flex-wrap:wrap; gap:8px; margin-top:2px}
+  .chip{display:inline-flex; align-items:center; gap:6px; border:1px solid var(--line); border-radius:999px; padding:7px 12px; font-size:13px; cursor:pointer; user-select:none; background:#fff}
+  .chip input{margin:0; width:auto}
+  .chip.on{border-color:var(--accent); background:var(--accent-soft); color:var(--accent); font-weight:600}
+  .repeat{margin-top:4px}
+  .repeat .row{display:grid; grid-template-columns:1.4fr 1fr 1fr auto; gap:8px; margin-bottom:8px; align-items:end}
+  .repeat .row.act{grid-template-columns:1.4fr 1fr 1.6fr auto}
+  .repeat .row input{padding:8px 10px; font-size:14px}
+  .repeat .del{border:1px solid var(--line); border-radius:8px; padding:8px 10px; color:var(--warn); cursor:pointer; font-size:13px; background:#fff}
+  @media(max-width:480px){ .repeat .row,.repeat .row.act{grid-template-columns:1fr 1fr} .repeat .del{grid-column:1/-1} }
   @media print{
     header.app,.card#intake,.btn,#pdfStatus,details.adv{display:none !important}
     body{background:#fff}
@@ -114,20 +124,95 @@
     </div>
     <div class="grid2">
       <div><label>学校</label><input id="school" placeholder="如 Kang Chiao International School" /></div>
-      <div><label>国籍</label><input id="nationality" placeholder="如 德国 / German" /></div>
+      <div><label>国籍</label><input id="nationality" list="natList" placeholder="如 德国 / German" />
+        <datalist id="natList">
+          <option value="中国"></option><option value="德国 / German"></option><option value="美国 / US"></option>
+          <option value="英国 / UK"></option><option value="新加坡"></option><option value="加拿大"></option>
+          <option value="澳大利亚"></option><option value="其他"></option>
+        </datalist>
+      </div>
     </div>
 
-    <label>学业成绩（IB MYP · 四标准 A/B/C/D 各 0–8 + Final 1–7）</label>
+    <label>升学方向（目标驱动报告 · 可多选 + 自定义）</label>
+    <div class="chips" id="directionChips">
+      <label class="chip"><input type="checkbox" value="港三全奖" />港三全奖</label>
+      <label class="chip"><input type="checkbox" value="牛剑" />牛津 / 剑桥</label>
+      <label class="chip"><input type="checkbox" value="美Top30" />美本 Top30</label>
+      <label class="chip"><input type="checkbox" value="欧陆公立(低免学费)" />欧陆公立(低免学费)</label>
+      <label class="chip"><input type="checkbox" value="新加坡" />新加坡</label>
+      <label class="chip"><input type="checkbox" value="加拿大" />加拿大</label>
+      <label class="chip"><input type="checkbox" value="澳洲" />澳洲</label>
+      <label class="chip"><input type="checkbox" value="多国联申" />多国联申</label>
+    </div>
+    <input id="directionCustom" placeholder="其他方向（自定义，如 日本 SGU / 荷兰研究型大学）" style="margin-top:8px" />
+
+    <label style="margin-top:10px">性格与兴趣测评</label>
+    <div class="grid2">
+      <div>
+        <label style="margin:0 0 4px">MBTI</label>
+        <input id="mbti" list="mbtiList" placeholder="如 ESTP / INFP" />
+        <datalist id="mbtiList">
+          <option>ISTJ</option><option>ISFJ</option><option>INFJ</option><option>INTJ</option>
+          <option>ISTP</option><option>ISFP</option><option>INFP</option><option>INTP</option>
+          <option>ESTP</option><option>ESFP</option><option>ENFP</option><option>ENTP</option>
+          <option>ESTJ</option><option>ESFJ</option><option>ENFJ</option><option>ENTJ</option>
+        </datalist>
+      </div>
+      <div>
+        <label style="margin:0 0 4px">Holland 代码（可多选）</label>
+        <div class="chips" id="hollandChips">
+          <label class="chip"><input type="checkbox" value="R" />R 现实型</label>
+          <label class="chip"><input type="checkbox" value="I" />I 研究型</label>
+          <label class="chip"><input type="checkbox" value="A" />A 艺术型</label>
+          <label class="chip"><input type="checkbox" value="S" />S 社会型</label>
+          <label class="chip"><input type="checkbox" value="E" />E 企业型</label>
+          <label class="chip"><input type="checkbox" value="C" />C 常规型</label>
+        </div>
+      </div>
+    </div>
+    <label style="margin-top:10px">兴趣地图（标签 / 自由描述）</label>
+    <textarea id="interestMap" placeholder="如 生物 · 编程 · 辩论 · 写作 · 机器人"></textarea>
+
+    <label style="margin-top:10px">学业成绩（IB MYP · 四标准 A/B/C/D 各 0–8 + Final 1–7）</label>
     <div id="subjects"></div>
 
-    <label>老师评语（优点 + 改进点）</label>
+    <label style="margin-top:10px">英语标化 & 考试</label>
+    <div class="grid2">
+      <div><label style="margin:0 0 4px">TOEFL Junior</label><input id="toeflJunior" inputmode="numeric" placeholder="分数" /></div>
+      <div><label style="margin:0 0 4px">TOEFL</label><input id="toefl" inputmode="numeric" placeholder="分数" /></div>
+      <div><label style="margin:0 0 4px">IELTS</label><input id="ielts" inputmode="numeric" placeholder="分数" /></div>
+      <div><label style="margin:0 0 4px">SAT / ACT</label><input id="sat" inputmode="numeric" placeholder="分数" /></div>
+    </div>
+    <div class="grid2" style="margin-top:8px">
+      <div><label style="margin:0 0 4px">最近考试日期</label><input id="examDate" placeholder="如 2026-08" /></div>
+      <div><label style="margin:0 0 4px">Service as Action 完成度</label><input id="saCount" type="number" min="0" max="7" placeholder="已完成 X / 7" /></div>
+    </div>
+
+    <div class="grid2" style="margin-top:8px">
+      <div><label style="margin:0 0 4px">目标专业大类</label>
+        <select id="major">
+          <option>未定</option><option>STEM</option><option>人文社科</option><option>商科</option><option>艺术</option><option>医学</option><option>其他</option>
+        </select>
+      </div>
+      <div><label style="margin:0 0 4px">申请目标年级</label><input id="applyGrade" type="number" min="1" max="12" placeholder="如 12（G12 申请）" /></div>
+    </div>
+
+    <label style="margin-top:10px">比赛奖项</label>
+    <div class="repeat" id="compList"></div>
+    <button class="btn ghost sm" id="addComp" type="button">+ 添加比赛</button>
+
+    <label style="margin-top:10px">志愿者 / 社团 / Service as Action 活动</label>
+    <div class="repeat" id="activityList"></div>
+    <button class="btn ghost sm" id="addAct" type="button">+ 添加活动</button>
+
+    <label style="margin-top:10px">老师评语（优点 + 改进点）</label>
     <textarea id="teacherComment" placeholder="粘贴学校报告中的 Comments / 老师评语，报告将引用其优点与改进点"></textarea>
 
     <div class="pdfzone" style="margin-top:14px">
       <label style="margin-top:0">📄 上传学校 PDF 报告（自动抽取辅助填表）</label>
       <input id="pdfFile" type="file" accept="application/pdf" />
       <div id="pdfStatus"></div>
-      <p class="hint">解析失败也不会阻塞——未识别的字段可手动补。PDF 仅是“加速”，不是必需。</p>
+      <p class="hint">解析失败也不会阻塞——未识别的字段可手动补。PDF 仅是"加速"，不是必需。</p>
       <details style="margin-top:8px">
         <summary class="muted" style="cursor:pointer;font-size:13px">无 PDF？粘贴报告原文自助识别</summary>
         <textarea id="pasteText" placeholder="把 PDF 里的纯文本粘贴到这里" style="margin-top:8px"></textarea>
@@ -153,7 +238,7 @@
       <div class="sec"><h3>① 竞争力总览与结论</h3><div id="rConclusion"></div></div>
       <div class="sec"><h3>② IB 学科诊断</h3><div id="rDiag"></div></div>
       <div class="sec"><h3>③ 优势与待改进点（总结自老师评语）</h3><div id="rSwot"></div></div>
-      <div class="sec"><h3>④ 长期升学方向</h3><div id="rDirection"></div></div>
+      <div class="sec"><h3>④ 长期升学方向（目标驱动）</h3><div id="rDirection"></div></div>
       <div class="sec"><h3>⑤ 行动清单（校内资源优先）</h3><div id="rActions"></div></div>
       <div class="sec"><h3>⑥ 年度路线图</h3><div id="rRoadmap"></div></div>
 
@@ -193,8 +278,20 @@
         '<div class="grade"><label style="margin:0 0 4px">Final (1–7)</label>'+
           '<input id="subject_score_'+s.key+'" type="number" min="1" max="7" placeholder="1–7" inputmode="numeric" /></div>'+
       '</div>';
-    subjectsBox.appendChild(d);
+      subjectsBox.appendChild(d);
   });
+
+  // ---- 录入端：升学方向 / Holland 标签切换 + 可增删行 ----
+  document.querySelectorAll('.chips input[type=checkbox]').forEach(function(cb){
+    cb.addEventListener('change', function(){ cb.closest('.chip').classList.toggle('on', cb.checked); });
+  });
+  function compRowHtml(){ return '<div class="row"><input class="c-name" placeholder="比赛名称" /><input class="c-level" placeholder="级别(校/市/国/国际)" /><input class="c-res" placeholder="结果(金/银/Top%)" /><button type="button" class="del" onclick="this.parentNode.remove()">✕</button></div>'; }
+  function actRowHtml(){ return '<div class="row act"><input class="a-name" placeholder="活动/社团名称" /><input class="a-role" placeholder="角色" /><input class="a-desc" placeholder="说明" /><button type="button" class="del" onclick="this.parentNode.remove()">✕</button></div>'; }
+  var compList=document.getElementById('compList'), actList=document.getElementById('activityList');
+  document.getElementById('addComp').addEventListener('click', function(){ compList.insertAdjacentHTML('beforeend', compRowHtml()); });
+  document.getElementById('addAct').addEventListener('click', function(){ actList.insertAdjacentHTML('beforeend', actRowHtml()); });
+  compList.insertAdjacentHTML('beforeend', compRowHtml());
+  actList.insertAdjacentHTML('beforeend', actRowHtml());
 
   function v(id){ var el=document.getElementById(id); return el?el.value.trim():''; }
   function setV(id,val){ var el=document.getElementById(id); if(el&&val!=null&&val!==''){ el.value=val; } }
@@ -362,6 +459,20 @@
         d: parseInt(v('subject_d_'+s.key),10)||null
       };
     });
+    p.direction = [];
+    document.querySelectorAll('#directionChips input:checked').forEach(function(cb){ p.direction.push(cb.value); });
+    var dc = v('directionCustom'); if(dc) p.direction.push(dc.trim());
+    p.mbti = v('mbti');
+    p.holland = []; document.querySelectorAll('#hollandChips input:checked').forEach(function(cb){ p.holland.push(cb.value); }); p.holland = p.holland.join(',');
+    p.interestMap = v('interestMap');
+    p.toeflJunior = v('toeflJunior'); p.toefl = v('toefl'); p.ielts = v('ielts'); p.sat = v('sat'); p.examDate = v('examDate');
+    p.saCount = v('saCount');
+    p.major = v('major');
+    p.applyGrade = v('applyGrade');
+    p.competitions = [];
+    document.querySelectorAll('#compList .row').forEach(function(r){ var n=r.querySelector('.c-name').value.trim(); if(n) p.competitions.push({name:n, level:r.querySelector('.c-level').value.trim(), res:r.querySelector('.c-res').value.trim()}); });
+    p.activities = [];
+    document.querySelectorAll('#activityList .row').forEach(function(r){ var n=r.querySelector('.a-name').value.trim(); if(n) p.activities.push({name:n, role:r.querySelector('.a-role').value.trim(), desc:r.querySelector('.a-desc').value.trim()}); });
     return p;
   }
 
@@ -400,15 +511,31 @@
     if(/德|german|germany/i.test(p.nationality||'')){
       t += ' 作为 <b>德国籍</b> 学生，申请港校属 <b>Non-JUPAS 国际生池</b>，可同时布局欧陆低免学费备选（德国 / 欧陆公立大学）。';
     } else if(p.nationality){ t += ' 国籍：'+escapeHtml(p.nationality)+'。'; }
+    if(p.direction && p.direction.length){ t += ' 升学方向：<b>'+p.direction.map(escapeHtml).join('、')+'</b>。'; }
     return t;
   }
 
   function direction(p){
-    var t = '目标锚定 <b>港三全奖</b>（港大 / 港科大 / 港中文）。';
-    if(/德|german/i.test(p.nationality||'')){
-      t += ' 德国籍身份打开两条并行赛道：① 香港三大经 Non-JUPAS 国际生通道申请，全奖看学术 + 竞赛 + 领导力；② 欧陆（德国及邻国）公立大学低 / 免学费，作为高性价比备选。';
+    var dirs = (p.direction||[]).filter(Boolean);
+    if(!dirs.length) return '尚未在档案中填写 <b>升学方向</b>。请回到录入端选择目标（港三 / 牛剑 / 美 Top30 / 欧陆 / 联申等），报告将据此定制路径与时间表。';
+    var map = {
+      '港三全奖':'港三大（港大 / 港科大 / 港中文）经 Non-JUPAS 国际生通道申请全奖，看学术 + 竞赛 + 领导力',
+      '牛剑':'牛津 / 剑桥靠学术深度 + 入学考试（MAT / STEP 等）+ 强推荐信',
+      '美Top30':'美本 Top30 走 holistic，重 GPA + SAT/ACT + 竞赛 + 文书 + 领导力',
+      '欧陆公立(低免学费)':'欧陆（德国及邻国）公立大学低 / 免学费，德语 / 英语授课并行，性价比高',
+      '新加坡':'新国立 / 南洋理工学术门槛高，看重竞赛与标化',
+      '加拿大':'加本（多伦多 / UBC）看重 GPA + 英语标化，移民友好',
+      '澳洲':'澳本（墨尔本 / 悉大）录取友好，看重 GPA + 英语标化',
+      '多国联申':'多国联申需统一时间轴，优先做保底与冲刺分层'
+    };
+    var t = '升学方向：<b>'+dirs.map(escapeHtml).join('、')+'</b>。';
+    t += '<ul class="diag">';
+    dirs.forEach(function(d){ if(map[d]) t += '<li>'+map[d]+'。</li>'; });
+    t += '</ul>';
+    if(/德|german|germany/i.test(p.nationality||'')){
+      t += ' 身份维度：德国籍 → 港校属 <b>Non-JUPAS 国际生池</b>；欧陆公立大学可走低 / 免学费通道，作为高性价比备选。';
     }
-    t += ' 学术上以 IB DP 高分为核心，数学 / 科学保持 7 分档，英语与人文均衡推进。';
+    if(p.major && p.major!=='未定') t += ' 专业侧重：<b>'+escapeHtml(p.major)+'</b>，选课与活动围绕该方向聚焦。';
     return t;
   }
 
@@ -428,6 +555,12 @@
         (ACTION_MAP[s.key]||[]).forEach(function(r){ items.push(r); });
       }
     });
+    var dirTxt = (p.direction||[]).join('、');
+    if(/美Top30/.test(dirTxt) && !p.sat) items.push('备考 SAT / ACT（美本 Top30 硬通货）');
+    if((/美|港|新|加|澳/.test(dirTxt)) && !(p.toefl||p.toeflJunior||p.ielts)) items.push('启动英语标化（TOEFL / IELTS）备考');
+    if(p.saCount && parseInt(p.saCount,10)<7) items.push('补满 Service as Action '+p.saCount+'/7（IB 硬性要求，当前未完成，优先级高）');
+    if(p.competitions && p.competitions.length) items.push('沉淀已获奖项为申请素材：'+p.competitions.map(function(c){return c.name+(c.res?'（'+c.res+'）':'');}).join('、'));
+    if(p.activities && p.activities.length) items.push('写入 CAS / 活动列表：'+p.activities.map(function(a){return a.name;}).join('、'));
     if(!items.length) items=['维持各科 7 分档，冲刺高阶竞赛（MK / AMC / BC 等）','补满 Service as Action 7/7（IB 硬性要求）'];
     var html = '<p class="muted">优先校内资源，校外仅作补充：</p><ul>';
     items.forEach(function(r){ html += '<li>🏫 校内：'+escapeHtml(r)+'</li>'; });
@@ -437,11 +570,15 @@
   }
 
   function roadmap(p){
-    var g = p.grade || '7';
+    var g = parseInt(p.grade||'7',10);
+    var ag = parseInt(p.applyGrade||'12',10);
+    if(ag < g+1) ag = g+1;
+    var mid = Math.max(g, ag-1);
+    var dirTxt = (p.direction||[]).join(' / ') || '目标院校';
     return '<ol class="timeline">'+
       '<li><b>G'+g+'（当前）</b>：巩固 IB MYP 各科 7 分档；补全 Service as Action；启动英语标化（TOEFL Junior → TOEFL）。</li>'+
-      '<li><b>G'+(+g+1)+'</b>：确定 DP 选课方向（Math AA HL / Bio HL 等）；高阶竞赛获奖；语言中心强化写作。</li>'+
-      '<li><b>G'+(+g+2)+'</b>：DP 前期冲刺；港三 / 欧陆申请素材积累（科研 / 领导力 / 推荐信）；提交 Non-JUPAS 申请。</li>'+
+      '<li><b>G'+mid+'</b>：确定 DP 选课方向（Math AA HL / Bio HL 等）；高阶竞赛获奖；语言中心强化写作与标化。</li>'+
+      '<li><b>G'+ag+'（申请年）</b>：DP 冲刺；提交 <b>'+escapeHtml(dirTxt)+'</b> 申请，同步准备欧陆 / 多国联申备选。</li>'+
       '</ol>';
   }
 
@@ -579,7 +716,8 @@
     document.getElementById('kpi').innerHTML =
       '<div class="box"><b>'+(diag.avg)+'</b><span>IB 平均 Final Grade</span></div>'+
       '<div class="box"><b>'+SUBJ.filter(function(s){return p.subjects[s.key].score!=null;}).length+'/5</b><span>已录学科</span></div>'+
-      '<div class="box"><b>'+(/德|german/i.test(p.nationality||'')?'国际生池':'—')+'</b><span>申请身份</span></div>';
+      '<div class="box"><b>'+(p.direction&&p.direction.length?p.direction.length+' 向':'—')+'</b><span>升学方向</span></div>'+
+      '<div class="box"><b>'+(/德|german|germany/i.test(p.nationality||'')?'国际生池':'—')+'</b><span>申请身份</span></div>';
 
     document.getElementById('rConclusion').innerHTML = '<p>'+concl+'</p>';
     document.getElementById('rDiag').innerHTML = diag.html;
