@@ -576,14 +576,7 @@
     if(p.saCount && parseInt(p.saCount,10)<7){
       add('补满 Service as Action '+p.saCount+'/7', '档案 Service as Action 完成度 = '+p.saCount+'/7，未达 IB 硬性 7/7 要求，将影响 DP 阶段升学资格评估。');
     }
-    // 4) 竞赛（基于录入）
-    if(p.competitions && p.competitions.length){
-      add('沉淀已获奖项为申请素材', '档案已录入 '+p.competitions.length+' 项比赛：'+p.competitions.map(function(c){return c.name+(c.res?'（'+c.res+'）':'');}).join('、')+'——需在文书与简历中重点突出。');
-    }
-    // 5) 活动（基于录入）
-    if(p.activities && p.activities.length){
-      add('写入 CAS / 活动列表', '档案已录入 '+p.activities.length+' 项活动/社团：'+p.activities.map(function(a){return a.name;}).join('、')+'——构成申请活动主线。');
-    }
+    // 竞赛 / 活动属于「已录入的档案数据」，不是待采取的行动，不列入行动清单
     // 兜底
     if(!items.length){
       add('维持各科 7 分档，冲刺高阶竞赛', '档案各学科 Final 均 ≥7 且四标准无 ≤6 弱项，暂无紧急学术补救；建议持续拔高。');
