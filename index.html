@@ -241,6 +241,7 @@
       <div class="sec"><h3>① 竞争力总览与结论</h3><div id="rConclusion"></div></div>
       <div class="sec"><h3>② IB 学科诊断</h3><div id="rDiag"></div></div>
       <div class="sec"><h3>③ 优势与待改进点（总结自老师评语）</h3><div id="rSwot"></div></div>
+      <div class="sec" id="secExtracurricular" style="display:none"><h3>🏆 竞赛与活动档案（来自录入）</h3><div id="rExtracurricular"></div></div>
       <div class="sec"><h3>④ 长期升学方向（目标驱动）</h3><div id="rDirection"></div></div>
       <div class="sec"><h3>⑤ 行动清单（校内资源优先）</h3><div id="rActions"></div></div>
       <div class="sec"><h3>⑥ 年度路线图</h3><div id="rRoadmap"></div></div>
@@ -254,8 +255,11 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>
 // ===APP_START===
-(function(){
+  (function(){
   "use strict";
+  // ---- 本机持久化（Key 存 localStorage，避免重复输入）----
+  function lsGet(k){ try{ return localStorage.getItem(k)||''; }catch(e){ return ''; } }
+  function lsSet(k,v){ try{ if(v) localStorage.setItem(k,v); else localStorage.removeItem(k); }catch(e){} }
   var SUBJ = [
     {key:'math',      name:'数学',   re:/mathematics|math|数学/i},
     {key:'english',   name:'英语',   re:/english|英语/i},
@@ -295,6 +299,12 @@
   document.getElementById('addAct').addEventListener('click', function(){ actList.insertAdjacentHTML('beforeend', actRowHtml()); });
   compList.insertAdjacentHTML('beforeend', compRowHtml());
   actList.insertAdjacentHTML('beforeend', actRowHtml());
+
+  // MiniMax Key 持久化到本机：载入已有值，输入即保存（无需重复粘贴）
+  var miniKeyEl = document.getElementById('miniKey');
+  var savedKey = lsGet('kq_mini_key');
+  if(savedKey) miniKeyEl.value = savedKey;
+  miniKeyEl.addEventListener('input', function(){ lsSet('kq_mini_key', miniKeyEl.value.trim()); });
 
   function v(id){ var el=document.getElementById(id); return el?el.value.trim():''; }
   function setV(id,val){ var el=document.getElementById(id); if(el&&val!=null&&val!==''){ el.value=val; } }
@@ -549,6 +559,20 @@
     chinese:['语言中心 中文写作','校园创作 / 文学社团'],
     humanities:['模拟联合国 / 人文社团','Service as Action 社会服务与行动']
   };
+  function extracurricular(p){
+    var comps = p.competitions||[], acts = p.activities||[];
+    if(!comps.length && !acts.length) return null;
+    var h = '<ul class="diag">';
+    if(comps.length){
+      h += '<li><b>🏆 比赛奖项</b><ul>'+comps.map(function(c){return '<li>'+escapeHtml(c.name)+(c.level?'（'+escapeHtml(c.level)+'）':'')+(c.res?' — '+escapeHtml(c.res):'')+'</li>';}).join('')+'</ul></li>';
+    }
+    if(acts.length){
+      h += '<li><b>🤝 社团 / 志愿者 / SA 活动</b><ul>'+acts.map(function(a){return '<li>'+escapeHtml(a.name)+(a.role?'（'+escapeHtml(a.role)+'）':'')+(a.desc?' — '+escapeHtml(a.desc):'')+'</li>';}).join('')+'</ul></li>';
+    }
+    h += '</ul>';
+    return h;
+  }
+
   function actions(p){
     var items=[];
     function add(title, reason){ items.push({title:title, reason:reason}); }
@@ -576,7 +600,18 @@
     if(p.saCount && parseInt(p.saCount,10)<7){
       add('补满 Service as Action '+p.saCount+'/7', '档案 Service as Action 完成度 = '+p.saCount+'/7，未达 IB 硬性 7/7 要求，将影响 DP 阶段升学资格评估。');
     }
-    // 竞赛 / 活动属于「已录入的档案数据」，不是待采取的行动，不列入行动清单
+    // 4) 竞赛（仅当档案真正录入时，且行动须关联该数据）
+    if(p.competitions && p.competitions.length){
+      p.competitions.forEach(function(c){
+        add('围绕「'+c.name+'」继续拔高'+(c.level?('（'+c.level+'）'):'')+(c.res?(' · '+c.res):''), '档案已录入比赛：'+c.name+(c.level?'（'+c.level+'）':'')+(c.res?'，结果 '+c.res:'')+'——可据此规划下一阶赛事或深化专长。');
+      });
+    }
+    // 5) 活动（仅当档案真正录入时）
+    if(p.activities && p.activities.length){
+      p.activities.forEach(function(a){
+        add('在「'+a.name+'」'+(a.role?('（'+a.role+'）'):'')+'争取更大影响力', '档案已录入活动：'+a.name+(a.role?'（'+a.role+'）':'')+(a.desc?'，'+a.desc:'')+'——可据此设计领导力 / 深度主线。');
+      });
+    }
     // 兜底
     if(!items.length){
       add('维持各科 7 分档，冲刺高阶竞赛', '档案各学科 Final 均 ≥7 且四标准无 ≤6 弱项，暂无紧急学术补救；建议持续拔高。');
@@ -712,41 +747,100 @@
     return h;
   }
 
-  async function maybeEnrich(profile, key){
+  function buildAiProfile(p){
+    var sp={};
+    SUBJ.forEach(function(s){
+      var subj=p.subjects[s.key];
+      if(subj && (subj.score!=null||subj.a!=null)){
+        var weak=critList(subj).filter(function(c){return c.n<=6;}).map(function(c){return c.L+c.n;});
+        sp[s.name]={final:subj.score, weak:weak};
+      }
+    });
+    return {
+      name:p.name, grade:p.grade, nationality:p.nationality,
+      direction:p.direction, major:p.major, applyGrade:p.applyGrade,
+      avgIB:ibDiag(p).avg, subjects:sp, saCount:p.saCount,
+      englishTest:{toeflJunior:p.toeflJunior, toefl:p.toefl, ielts:p.ielts, sat:p.sat},
+      competitions:(p.competitions||[]).map(function(c){return c.name+(c.level?'/'+c.level:'')+(c.res?'/'+c.res:'');}),
+      activities:(p.activities||[]).map(function(a){return a.name+(a.role?'/'+a.role:'')+(a.desc?'/'+a.desc:'');}),
+      swot:summarizeComments(p)
+    };
+  }
+  function parseAI(text){
+    try{
+      var m=text.match(/\{[\s\S]*\}/);
+      if(!m) return null;
+      var o=JSON.parse(m[0]);
+      if(o && o.conclusion && Array.isArray(o.actions)) return o;
+    }catch(e){}
+    return null;
+  }
+  async function callMiniMax(p, key){
     if(!key) return null;
     try{
-      var prompt = '你是升学规划顾问。基于学生档案用一句中文给出竞争力结论（含身份维度）：'+JSON.stringify(profile);
+      var ap = buildAiProfile(p);
+      var prompt = '你是国际学校（IB MYP）升学规划顾问。以下是某 G6-G9 学生的档案 JSON：\n'+JSON.stringify(ap)+
+        '\n请基于真实数据做诊断，并用 JSON 返回（只返回 JSON，不要解释、不要 markdown 代码块）：\n'+
+        '{\n  "conclusion": "一段中文竞争力总览结论（含身份/升学方向维度，80字内）",\n'+
+        '  "actions": [ {"title":"行动标题","reason":"基于该生档案的具体触发原因"} ]\n}\n'+
+        '// actions 3-6 条，须可执行，且与档案弱项 / 升学方向 / 已录竞赛活动相关联；每条都要有 reason。';
+      var ctrl=new AbortController();
+      var to=setTimeout(function(){ ctrl.abort(); }, 15000);
       var res = await fetch('https://api.minimax.chat/v1/text/chatcompletion_v2', {
         method:'POST',
         headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
-        body:JSON.stringify({model:'abab6.5s-chat', messages:[{role:'user',content:prompt}]})
+        body:JSON.stringify({model:'abab6.5s-chat', messages:[{role:'user',content:prompt}]}),
+        signal:ctrl.signal
       });
+      clearTimeout(to);
       var data = await res.json();
-      return (data && (data.reply || (data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content))) || null;
+      var text = (data && (data.reply || (data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content))) || '';
+      return parseAI(text);
     }catch(e){ return null; }
   }
 
   // ---- 生成报告 ----
   document.getElementById('generateBtn').addEventListener('click', async function(){
+    var btn = this;
     var p = getProfile();
     var diag = ibDiag(p);
-    var concl = conclusion(p, diag.avg);
-    var key = v('miniKey');
+    var key = (v('miniKey')||'').trim() || lsGet('kq_mini_key');
+    var ai = null;
     if(key){
-      var ai = await maybeEnrich(p, key);
-      if(ai) concl = '🤖 '+ai;
+      btn.disabled = true; var oldTxt = btn.textContent; btn.textContent = 'AI 分析中…';
+      ai = await callMiniMax(p, key);
+      btn.disabled = false; btn.textContent = oldTxt;
     }
+    var concl = ai ? ('🤖 '+ai.conclusion) : conclusion(p, diag.avg);
     document.getElementById('kpi').innerHTML =
       '<div class="box"><b>'+(diag.avg)+'</b><span>IB 平均 Final Grade</span></div>'+
       '<div class="box"><b>'+SUBJ.filter(function(s){return p.subjects[s.key].score!=null;}).length+'/5</b><span>已录学科</span></div>'+
       '<div class="box"><b>'+(p.direction&&p.direction.length?p.direction.length+' 向':'—')+'</b><span>升学方向</span></div>'+
-      '<div class="box"><b>'+(/德|german|germany/i.test(p.nationality||'')?'国际生池':'—')+'</b><span>申请身份</span></div>';
+      '<div class="box"><b>'+(/德|german|germany/i.test(p.nationality||'')?'国际生池':'—')+'</b><span>申请身份</span></div>'+
+      (key?'<div class="box"><b>🤖 AI</b><span>实时分析</span></div>':'');
 
     document.getElementById('rConclusion').innerHTML = '<p>'+concl+'</p>';
     document.getElementById('rDiag').innerHTML = diag.html;
     document.getElementById('rSwot').innerHTML = swot(p);
+
+    // 竞赛与活动：仅当档案真正录入时展示
+    var exHtml = extracurricular(p);
+    var exSec = document.getElementById('secExtracurricular');
+    if(exHtml){ exSec.style.display='block'; document.getElementById('rExtracurricular').innerHTML = exHtml; }
+    else { exSec.style.display='none'; }
+
     document.getElementById('rDirection').innerHTML = '<p>'+direction(p)+'</p>';
-    document.getElementById('rActions').innerHTML = actions(p);
+
+    // 行动清单：有 Key 且 AI 成功 → 用实时 AI 行动；否则本地生成（含比赛/活动关联）
+    var actionsHtml;
+    if(ai && ai.actions && ai.actions.length){
+      actionsHtml = '<p class="muted">以下行动由 MiniMax 实时分析生成，每条均基于档案输入：</p><ul class="actions">';
+      ai.actions.forEach(function(it){ actionsHtml += '<li><b>'+escapeHtml(it.title)+'</b><span class="reason">原因：'+escapeHtml(it.reason)+'</span></li>'; });
+      actionsHtml += '</ul>';
+    } else {
+      actionsHtml = actions(p);
+    }
+    document.getElementById('rActions').innerHTML = actionsHtml;
     document.getElementById('rRoadmap').innerHTML = roadmap(p);
 
     document.getElementById('intake').style.display='none';
