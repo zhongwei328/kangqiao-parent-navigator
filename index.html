@@ -273,11 +273,11 @@
   function lsGet(k){ try{ return localStorage.getItem(k)||''; }catch(e){ return ''; } }
   function lsSet(k,v){ try{ if(v) localStorage.setItem(k,v); else localStorage.removeItem(k); }catch(e){} }
   var SUBJ = [
-    {key:'math',      name:'数学', en:'Mathematics', re:/mathematics|math|数学/i, prog:'学术专案组「状元养成计划」AMC/AMC10 冲刺班'},
-    {key:'english',   name:'英语', en:'English',      re:/english|英语/i,          prog:'语言中心（托福 / 雅思）写作与标化工作坊'},
-    {key:'science',   name:'科学', en:'Sciences',     re:/sciences?|科学/i,        prog:'学术专案组「状元养成计划」（机器人 / 未来之城 / 科创）'},
-    {key:'chinese',   name:'中文', en:'Chinese',      re:/chinese|中文/i,          prog:'校内演讲 / 写作社团与「状元养成计划」人文板块'},
-    {key:'humanities',name:'人文社科', en:'Individuals & Societies', re:/individuals\s+and\s+societies|humanities|人文/i, prog:'学术专案组「状元养成计划」（模拟联合国 / 辩论）'}
+    {key:'math',      name:'数学', en:'Mathematics', re:/mathematics|math|数学/i, prog:'状元养成计划 · AMC / AMC10 冲刺班'},
+    {key:'english',   name:'英语', en:'English',      re:/english|英语/i,          prog:'语言中心 · 托福 / 雅思写作与标化工作坊'},
+    {key:'science',   name:'科学', en:'Sciences',     re:/sciences?|科学/i,        prog:'状元养成计划 · 机器人 / 未来之城 / 科创'},
+    {key:'chinese',   name:'中文', en:'Chinese',      re:/chinese|中文/i,          prog:'状元养成计划 · 人文板块（演讲 / 写作社团）'},
+    {key:'humanities',name:'人文社科', en:'Individuals & Societies', re:/individuals\s+and\s+societies|humanities|人文/i, prog:'状元养成计划 · 模拟联合国 / 辩论'}
   ];
   // IB MYP 四标准（A/B/C/D）通用中文名，用于把弱项指向具体课程模块
   var CRIT_NAME = {A:'知识与理解', B:'探究与规律', C:'沟通', D:'应用与反思'};
@@ -532,6 +532,32 @@
     return {html:html, avg:avg};
   }
 
+  // 各升学方向对英语标化 / SAT 的硬门槛映射（用于结论显式给出"缺口"）
+  var STD_REQ = {
+    '港三全奖':['toefl_ielts'],
+    '牛剑':['toefl_ielts'],
+    '美Top30':['toefl_ielts','sat'],
+    '新加坡':['toefl_ielts'],
+    '加拿大':['toefl_ielts'],
+    '澳洲':['toefl_ielts'],
+    '多国联申':['toefl_ielts','sat'],
+    '欧陆公立(低免学费)':[]
+  };
+  // 返回：已有标化 have[]、按方向推出的缺口 miss[]、TOEFL Junior 过渡成绩、方向是否有标化要求
+  function stdGap(p){
+    var dirs=(p.direction||[]).filter(Boolean);
+    var need={};
+    dirs.forEach(function(d){ (STD_REQ[d]||[]).forEach(function(k){ need[k]=true; }); });
+    var have=[];
+    if(p.toefl) have.push('TOEFL '+p.toefl);
+    if(p.ielts) have.push('IELTS '+p.ielts);
+    if(p.sat)   have.push('SAT '+p.sat);
+    var miss=[];
+    if(need.toefl_ielts && !(p.toefl||p.ielts)) miss.push('TOEFL / IELTS 正式成绩');
+    if(need.sat && !p.sat) miss.push('SAT / ACT');
+    return {have:have, miss:miss, junior:p.toeflJunior||'', needAny:Object.keys(need).length>0};
+  }
+
   function conclusion(p, avg){
     var lvl = avg==='—' ? '—' : (avg>=6.5?'顶尖':avg>=5.5?'优秀':avg>=4?'良好':'待提升');
     var t = (p.name||'该生')+'（'+(p.school||'学校未填')+'，'+(p.grade?('G'+p.grade):'年级未填')+'）IB MYP 各科 Final Grade 平均 <b>'+avg+'/7</b>，整体学术竞争力 <b>'+lvl+'</b>。';
@@ -539,6 +565,36 @@
       t += ' 作为 <b>德国籍</b> 学生，申请港校属 <b>Non-JUPAS 国际生池</b>，可同时布局欧陆低免学费备选（德国 / 欧陆公立大学）。';
     } else if(p.nationality){ t += ' 国籍：'+escapeHtml(p.nationality)+'。'; }
     if(p.direction && p.direction.length){ t += ' 升学方向：<b>'+p.direction.map(escapeHtml).join('、')+'</b>。'; }
+
+    // ① 英语标化：已有成绩 + 按所选方向推出的硬门槛缺口
+    var g = stdGap(p);
+    t += ' <b>英语标化</b>：';
+    if(g.have.length){
+      t += '已录入 '+g.have.map(escapeHtml).join('、')+'；';
+    } else if(g.junior){
+      t += '目前仅有 TOEFL Junior '+escapeHtml(g.junior)+'（衔接性测评，大学录取不直接采用）；';
+    } else {
+      t += '档案未录入任何标化成绩；';
+    }
+    if(g.miss.length){
+      t += '<b>缺口 = '+g.miss.map(escapeHtml).join(' + ')+'</b>，按所选方向属硬门槛，建议 G9 前完成首考定位。';
+    } else if(g.needAny){
+      t += '已覆盖所选方向的标化要求，后续以刷分冲高为主。';
+    } else {
+      t += '所选方向对英语标化要求相对宽松，按目标校语言授课要求准备即可。';
+    }
+
+    // ② Service as Action：IB MYP 毕业硬性门槛
+    var saRaw = (p.saCount===''||p.saCount==null) ? null : parseInt(p.saCount,10);
+    t += ' <b>Service as Action</b>：';
+    if(saRaw===null || isNaN(saRaw)){
+      t += '档案未录入完成度，需向班导 / 升学办核实（IB MYP 毕业要求 7/7）。';
+    } else if(saRaw>=7){
+      t += '已完成 '+saRaw+'/7，满足 IB MYP 毕业要求。';
+    } else {
+      t += '仅完成 <b>'+saRaw+'/7</b>，未达 IB MYP 毕业硬性要求，为当前<b>最高优先级风险项</b>（直接影响 DP 升读与升学资格评估）。';
+    }
+
     if(p.mbti) t += ' 性格测评（MBTI）：<b>'+escapeHtml(p.mbti)+'</b>。';
     if(p.holland) t += ' Holland 兴趣代码：<b>'+escapeHtml(p.holland)+'</b>。';
     if(p.interestMap) t += ' 兴趣地图：'+escapeHtml(p.interestMap)+'。';
