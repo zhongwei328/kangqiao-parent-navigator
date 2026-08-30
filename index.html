@@ -938,23 +938,54 @@
     }catch(e){}
     return null;
   }
+  function aiConclusionHtml(ai){
+    var c = ai && ai.conclusion;
+    if(typeof c === 'string'){
+      // 向后兼容旧版字符串格式
+      return '<p>'+escapeHtml(c)+'</p>';
+    }
+    if(!c || typeof c !== 'object') return '<p class="muted">AI 未返回结构化结论。</p>';
+    var h = '<div class="ai-concl">';
+    if(c.positioning) h += '<div class="ai-pos"><span class="ai-k">定位</span><span>'+escapeHtml(c.positioning)+'</span></div>';
+    if(Array.isArray(c.edge) && c.edge.length){
+      h += '<div class="ai-blk"><div class="ai-k">差异化竞争力</div><ul>'+c.edge.map(function(x){return '<li>'+escapeHtml(x)+'</li>';}).join('')+'</ul></div>';
+    }
+    if(Array.isArray(c.risks) && c.risks.length){
+      h += '<div class="ai-blk"><div class="ai-k">核心风险</div><ul class="risk">'+c.risks.map(function(x){return '<li>'+escapeHtml(x)+'</li>';}).join('')+'</ul></div>';
+    }
+    if(c.nextWindow) h += '<div class="ai-blk"><div class="ai-k">本学期最该动的一件事</div><div class="ai-next">'+escapeHtml(c.nextWindow)+'</div></div>';
+    h += '</div>';
+    return h;
+  }
+
   async function callMiniMax(p, key){
     if(!key) return null;
     try{
       var ap = buildAiProfile(p);
-      var prompt = '你是国际学校（IB MYP）升学规划顾问。以下是某 G6-G9 学生的档案 JSON：\n'+JSON.stringify(ap)+
-        '\n请基于真实数据做诊断，并用 JSON 返回（只返回 JSON，不要解释、不要 markdown 代码块）：\n'+
+      var prompt = '【角色】你是国际学校（IB MYP）升学规划顾问。服务对象是**学生家长**（非教育从业者），输出用于家长阅读与校长审批。\n\n'+
+        '【学生档案 JSON】\n'+JSON.stringify(ap)+'\n\n'+
+        '【硬性规则（违反任一条即视为错误输出）】\n'+
+        '1) 反幻觉：仅可使用档案中明确出现的字段（分数 / 奖项 / 活动 / 方向 / 标化 / 性格兴趣 / 老师评语）。档案中不存在的奖项、活动、分数、学校项目名、链接 URL 一律不得出现；缺失字段必须写“未录入”，严禁推断或编造为事实。\n'+
+        '2) 校内资源白名单：提到校内资源时只能从下列选择，不得自创项目名——学术专案组「状元养成计划」（含 AMC/AMC10、机器人、未来之城、模联、辩论等）、语言中心（托福 / 雅思标化与写作）、机器人社、模拟联合国社、辩论社、演讲 / 写作社团。\n'+
+        '3) 家长可读性：专业术语首次出现须用括号一句白话解释（例：D 标准（IB 评分的四个维度之一，衡量知识运用与反思）；Non-JUPAS（不以香港高考成绩申请的国际生通道）；Service as Action（IB 要求的社区服务，须完成 7 项））。表述用“当前位置 + 差距 + 可补路径”，禁止绝对化判断（如“很难录取”“希望不大”“基本没戏”）。\n'+
+        '4) 防标签化：MBTI / Holland / 兴趣地图不得只贴标签（如“ESTP，性格外向活泼”），必须落到“专业方向匹配度 + 学习方式建议”，并注明“性格测评仅作参考，不作为录取依据”。\n\n'+
+        '【输出格式】只返回 JSON（不要解释、不要 markdown 代码块）：\n'+
         '{\n'+
-        '  "conclusion": "一段中文竞争力总览结论（必须综合档案全部信息：学科强弱、身份/国籍、升学方向、英语标化、Service as Action、已录竞赛活动，以及性格测评 MBTI、Holland 兴趣代码、兴趣地图；点明该生的差异化竞争力与核心风险，120字内）",\n'+
+        '  "conclusion": {\n'+
+        '    "positioning": "一句话定位：学术档位（IB MYP 各科平均 X/7，属顶尖/优秀/良好）+ 申请通道（如德籍属 Non-JUPAS 国际生池）",\n'+
+        '    "edge": ["差异化竞争力 1（须关联档案具体字段）", "差异化竞争力 2"],\n'+
+        '    "risks": ["核心风险 1（注明硬门槛依据，如某方向要求 TOEFL/IELTS）", "核心风险 2（如 Service as Action 仅 X/7，未达 IB 毕业硬性 7/7）"],\n'+
+        '    "nextWindow": "本学期最该动的一件事（结合紧急性，指向白名单中的具体校内项目）"\n'+
+        '  },\n'+
         '  "actions": [ {"title":"行动标题","reason":"基于该生档案某个具体字段的触发原因","scope":"校内 或 校外","importance":"高/中/低（对升学竞争力的重要性）","urgency":"高/中/低（是否临近截止/资格门槛）"} ]\n}\n'+
         '// 要求：\n'+
-        '// 1) conclusion 必须覆盖 MBTI / Holland / 兴趣地图 与升学方向的匹配度，不能只谈成绩。\n'+
-        '// 2) actions 4-6 条；scope 字段只能取「校内」或「校外」。\n'+
-        '//    - 标「校内」的行动 title 必须点名**具体 IB MYP 学科课程 + 哪个四标准(A/B/C/D)需补强 + 康桥校内真实资源**，例如「校内 · 数学(Mathematics)课 — 报名「状元养成计划」AMC/AMC10 冲刺班，重点提升 B（探究与规律）6/8」，或「校内 · 英语(English)课 — 参加语言中心托福/雅思写作工作坊，重点提升 D（沟通）6/8」；不要泛泛写“语言中心”。康桥校内真实资源包括：学术专案组「状元养成计划」（AMC/AMC10、机器人、未来之城、模联、辩论等）、语言中心（托福/雅思标化与写作）。\n'+
+        '// 1) conclusion.positioning 须综合 学科均分 + 身份/国籍 + 升学方向；edge 必须覆盖 MBTI/Holland/兴趣地图 与升学方向/专业的匹配度，不能只谈成绩；risks 必须点明 英语标化缺口 与 Service as Action 完成度 两类硬门槛（若档案未录入则写“未录入”）。\n'+
+        '// 2) actions 4-6 条；scope 只能取「校内」或「校外」。\n'+
+        '//    - 标「校内」的 title 必须点名具体 IB MYP 学科课程 + 哪个四标准(A/B/C/D)需补强 + 白名单中的康桥校内真实资源，例如「校内 · 数学(Mathematics)课 — 报名「状元养成计划」AMC/AMC10 冲刺班，重点提升 B（探究与规律）6/8」，或「校内 · 英语(English)课 — 参加语言中心托福/雅思写作工作坊，重点提升 D（沟通）6/8」；不要泛泛写“语言中心”。\n'+
         '//    - 标「校外」的：托福/雅思集训、暑期科研、国际竞赛报名等需校外补充的。\n'+
-        '// 3) 每条 action 须关联档案真实字段（弱项/方向/标化/SA/竞赛活动/性格兴趣），reason 写清触发依据；性格与兴趣地图应转化为具体行动（如按 Holland 代码选社团、按兴趣地图深化项目）。\n'+
-        '// 4) 若档案 swot 字段为 null（未录入老师评语），conclusion 末尾须注明“老师评语未录入，以下基于学科分数与档案其他字段推断”，并优先用分数弱项生成校内课程补救行动。\n'+
-        '// 5) 每条 action 必填 importance 与 urgency（取值 高/中/低）。涉及 IB 毕业/资格门槛（如 Service as Action 未达标）须标 urgency=高、importance=高；学科成绩短板 importance 至少 中。';
+        '// 3) 每条 action 须关联档案真实字段，reason 写清触发依据；性格与兴趣地图须转化为具体行动（按 Holland 代码选社团、按兴趣地图深化项目）。\n'+
+        '// 4) 若档案 swot 字段为 null（未录入老师评语），conclusion 中须注明“老师评语未录入，以下基于学科分数与档案其他字段推断”，并优先用分数弱项生成校内课程补救行动。\n'+
+        '// 5) 每条 action 必填 importance 与 urgency（取值 高/中/低）。Service as Action 未达标须标 urgency=高、importance=高；学科成绩短板 importance 至少 中。';
       var ctrl=new AbortController();
       var to=setTimeout(function(){ ctrl.abort(); }, 15000);
       var res = await fetch('https://api.minimax.chat/v1/text/chatcompletion_v2', {
@@ -994,7 +1025,7 @@
     var aiOk = !!(ai && !ai.error);
     var aiFailed = !!(key && !aiOk);
     var aiErr = (ai && ai.error) ? ai.error : '';
-    var concl = aiOk ? ('🤖 '+ai.conclusion) : conclusion(p, diag.avg);
+    var conclHtml = aiOk ? ('<div class="ai-badge">🤖 MiniMax 实时诊断</div>'+aiConclusionHtml(ai)) : '<p>'+conclusion(p, diag.avg)+'</p>';
     document.getElementById('kpi').innerHTML =
       '<div class="box"><b>'+(diag.avg)+'</b><span>IB 平均 Final Grade</span></div>'+
       '<div class="box"><b>'+SUBJ.filter(function(s){return p.subjects[s.key].score!=null;}).length+'/5</b><span>已录学科</span></div>'+
@@ -1002,7 +1033,7 @@
       '<div class="box"><b>'+(/德|german|germany/i.test(p.nationality||'')?'国际生池':'—')+'</b><span>申请身份</span></div>'+
       (key?'<div class="box"><b>'+(aiOk?'🤖 AI':'⚠️ AI 失败')+'</b><span>'+(aiOk?'实时分析':'已回退本地')+'</span></div>':'');
 
-    document.getElementById('rConclusion').innerHTML = '<p>'+concl+'</p>'+(aiFailed?'<p class="muted">⚠️ 实时 AI 分析未成功：'+(aiErr?escapeHtml(aiErr):'已回退本地诊断')+'。可重试或检查网络/Key。</p>':'');
+    document.getElementById('rConclusion').innerHTML = conclHtml+(aiFailed?'<p class="muted">⚠️ 实时 AI 分析未成功：'+(aiErr?escapeHtml(aiErr):'已回退本地诊断')+'。可重试或检查网络/Key。</p>':'');
     document.getElementById('rDiag').innerHTML = diag.html;
     document.getElementById('rSwot').innerHTML = swot(p);
 
