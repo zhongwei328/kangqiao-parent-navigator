@@ -273,11 +273,11 @@
   function lsGet(k){ try{ return localStorage.getItem(k)||''; }catch(e){ return ''; } }
   function lsSet(k,v){ try{ if(v) localStorage.setItem(k,v); else localStorage.removeItem(k); }catch(e){} }
   var SUBJ = [
-    {key:'math',      name:'数学', en:'Mathematics', re:/mathematics|math|数学/i},
-    {key:'english',   name:'英语', en:'English',      re:/english|英语/i},
-    {key:'science',   name:'科学', en:'Sciences',     re:/sciences?|科学/i},
-    {key:'chinese',   name:'中文', en:'Chinese',      re:/chinese|中文/i},
-    {key:'humanities',name:'人文社科', en:'Individuals & Societies', re:/individuals\s+and\s+societies|humanities|人文/i}
+    {key:'math',      name:'数学', en:'Mathematics', re:/mathematics|math|数学/i, prog:'学术专案组「状元养成计划」AMC/AMC10 冲刺班'},
+    {key:'english',   name:'英语', en:'English',      re:/english|英语/i,          prog:'语言中心（托福 / 雅思）写作与标化工作坊'},
+    {key:'science',   name:'科学', en:'Sciences',     re:/sciences?|科学/i,        prog:'学术专案组「状元养成计划」（机器人 / 未来之城 / 科创）'},
+    {key:'chinese',   name:'中文', en:'Chinese',      re:/chinese|中文/i,          prog:'校内演讲 / 写作社团与「状元养成计划」人文板块'},
+    {key:'humanities',name:'人文社科', en:'Individuals & Societies', re:/individuals\s+and\s+societies|humanities|人文/i, prog:'学术专案组「状元养成计划」（模拟联合国 / 辩论）'}
   ];
   // IB MYP 四标准（A/B/C/D）通用中文名，用于把弱项指向具体课程模块
   var CRIT_NAME = {A:'知识与理解', B:'探究与规律', C:'沟通', D:'应用与反思'};
@@ -586,7 +586,9 @@
   // ---- 行动清单：优先级（重要性 × 紧急性）+ 信息来源 / 参考链接 ----
   // 真实可访问的权威参考（如用户要求"提供网站链接"）
   var IB_CUR = { url:'https://ibo.org/programmes/middle-years-programme/curriculum/', label:'IB MYP 官方课程大纲与评分标准' };
-  var KQ_SITE = { url:'https://kunshan.kcis.org.cn', label:'康桥学校昆山校区官网（留学辅导 / Service as Action）' };
+  var KQ_SITE = { url:'https://kunshan.kcis.org.cn', label:'康桥学校昆山校区官网' };
+  // 康桥校内真实项目（学术专案组「状元养成计划」/ 语言中心），均挂昆山校区官网
+  function kqProgLink(prog){ return { url:'https://kunshan.kcis.org.cn', label:'康桥昆山校区 · '+prog }; }
   var IMP_LV = {高:3,中:2,低:1};
   var URG_LV = {高:3,中:2,低:1};
   function prioScore(imp, urg){ return (URG_LV[urg]||2)*10 + (IMP_LV[imp]||2); } // 紧急优先，其次重要
@@ -596,13 +598,15 @@
   function actionItemHtml(it, idx){
     var scopeCls = it.scope==='校外' ? 'scope-out' : 'scope-in';
     var scopeTxt = it.scope==='校外' ? '🌐 校外' : '🏫 校内';
+    var links = (it.links && it.links.length) ? it.links : (it.link ? [it.link] : []);
+    var linkHtml = links.length ? ' · ' + links.map(function(l){ return '<a href="'+l.url+'" target="_blank" rel="noopener">'+escapeHtml(l.label)+'</a>'; }).join(' · ') : '';
     var h = '<li>'+
       '<span class="prio">P'+(idx+1)+'</span>'+
       '<b>'+escapeHtml(it.title)+'</b>'+
       ' <span class="scope '+scopeCls+'">'+scopeTxt+'</span>'+
       prioBadge(it.imp, it.urg)+
       (it.reason ? '<span class="reason">原因：'+escapeHtml(it.reason)+'</span>' : '')+
-      (it.source ? '<span class="source">📌 '+escapeHtml(it.source)+(it.link ? (' · <a href="'+it.link.url+'" target="_blank" rel="noopener">'+escapeHtml(it.link.label)+'</a>') : '')+'</span>' : '');
+      (it.source ? '<span class="source">📌 '+escapeHtml(it.source)+linkHtml+'</span>' : '');
     return h + '</li>';
   }
   function renderActions(items, note){
@@ -618,7 +622,7 @@
         title:title, reason:reason,
         imp: meta.imp||'中', urg: meta.urg||'中',
         scope: meta.scope||'校内',
-        source: meta.source||'', link: meta.link||null
+        source: meta.source||'', links: meta.links||null
       });
     }
     // 1) 学科弱项（基于录入的四标准 / Final）→ 具体校内课程 + 标准 + 优先级 + 信息来源/链接
@@ -635,10 +639,11 @@
       if(weak.length) parts.push('四标准弱项 '+weak.map(function(c){return c.L+c.n;}).join('、'));
       var ev = s.name+' '+(parts.join('；')||'（分数偏低）');
       var isCore = subj.score!=null && subj.score<=6; // Final≤6 = 竞争力核心短板
-      add('校内 · '+s.name+'课（'+s.en+'）— '+focus,
-        '基于档案录入：'+ev+' —— 对应校内课程 '+s.name+'课（'+s.en+'）需针对性补强。',
+      add('校内 · '+s.name+'课（'+s.en+'）— 报名「'+s.prog+'」，'+focus,
+        '基于档案录入：'+ev+' —— 对应校内课程 '+s.name+'课（'+s.en+'）需针对性补强，建议走康桥校内「'+s.prog+'」。',
         { imp: isCore?'高':'中', urg: isCore?'中':'中', scope:'校内',
-          source:'信息来源：IB MYP 成绩单录入 — '+ev, link:IB_CUR });
+          source:'信息来源：IB MYP 成绩单录入 — '+ev,
+          links:[IB_CUR, kqProgLink(s.prog)] });
     });
     // 2) 升学方向联动（标化缺失）
     var dirTxt = (p.direction||[]).join('、');
@@ -653,7 +658,7 @@
     // 3) Service as Action（IB 硬性毕业/资格门槛 → 重要 + 紧急 双高，最优先）
     if(p.saCount && parseInt(p.saCount,10)<7){
       add('补满 Service as Action '+p.saCount+'/7', '档案 Service as Action 完成度 = '+p.saCount+'/7，未达 IB 硬性 7/7 要求，将影响 DP 阶段升学资格评估。',
-        { imp:'高', urg:'高', scope:'校内', source:'信息来源：IB MYP 毕业要求 — Service as Action 须完成 7/7（档案显示 '+(p.saCount||0)+'/7）', link:KQ_SITE });
+        { imp:'高', urg:'高', scope:'校内', source:'信息来源：IB MYP 毕业要求 — Service as Action 须完成 7/7（档案显示 '+(p.saCount||0)+'/7）', links:[KQ_SITE] });
     }
     // 4) 竞赛（仅当档案真正录入）
     if(p.competitions && p.competitions.length){
@@ -674,29 +679,29 @@
     // 兜底
     if(!items.length){
       add('维持各科 7 分档，冲刺高阶竞赛', '档案各学科 Final 均 ≥7 且四标准无 ≤6 弱项，暂无紧急学术补救；建议持续拔高。',
-        { imp:'低', urg:'低', scope:'校内', source:'信息来源：IB MYP 成绩单（各科均 ≥7）' });
+        { imp:'低', urg:'低', scope:'校内', source:'信息来源：IB MYP 成绩单（各科均 ≥7）', links:[IB_CUR] });
       add('补满 Service as Action 7/7', 'IB 硬性要求 7/7；即便当前无弱项，也应尽早达标以满足升学资格。',
-        { imp:'高', urg:'高', scope:'校内', source:'信息来源：IB MYP 毕业要求（Service as Action 7/7）', link:KQ_SITE });
+        { imp:'高', urg:'高', scope:'校内', source:'信息来源：IB MYP 毕业要求（Service as Action 7/7）', links:[KQ_SITE] });
     }
     return items;
   }
   // 实时 AI 行动：若命中已知学科 / SA，自动补上真实信息来源与链接（保证链接准确）
   function aiMeta(it, p){
     var txt = (it.title||'')+' '+(it.reason||'');
-    var meta = { source:'', link:null };
+    var meta = { source:'', links:null };
     for(var i=0;i<SUBJ.length;i++){
       if(new RegExp(SUBJ[i].re).test(txt)){
         var subj=p.subjects[SUBJ[i].key];
         var ev=[];
         if(subj && subj.score!=null) ev.push('Final '+subj.score+'/7');
         if(subj){ var w=critList(subj).filter(function(c){return c.n<=6;}); if(w.length) ev.push('弱项 '+w.map(function(c){return c.L+c.n;}).join('、')); }
-        meta.source='信息来源：IB MYP 成绩单 — '+SUBJ[i].name+(ev.length?('（'+ev.join('；')+'）'):'');
-        meta.link=IB_CUR;
+        meta.source='信息来源：IB MYP 成绩单 — '+SUBJ[i].name+(ev.length?('（'+ev.join('；')+'）'):'')+'；建议走康桥校内「'+SUBJ[i].prog+'」';
+        meta.links=[IB_CUR, kqProgLink(SUBJ[i].prog)];
         return meta;
       }
     }
     if(/service\s*as\s*action|service learning|服务与行动|服务学习|sa\b/i.test(txt)){
-      meta.source='信息来源：IB MYP 毕业要求（Service as Action 7/7）'; meta.link=KQ_SITE; return meta;
+      meta.source='信息来源：IB MYP 毕业要求（Service as Action 7/7）'; meta.links=[KQ_SITE]; return meta;
     }
     meta.source='信息来源：MiniMax 实时 AI 基于档案字段诊断';
     return meta;
@@ -889,7 +894,7 @@
         '// 要求：\n'+
         '// 1) conclusion 必须覆盖 MBTI / Holland / 兴趣地图 与升学方向的匹配度，不能只谈成绩。\n'+
         '// 2) actions 4-6 条；scope 字段只能取「校内」或「校外」。\n'+
-        '//    - 标「校内」的行动 title 必须点名**具体 IB MYP 学科课程 + 哪个四标准(A/B/C/D)需补强**，例如「校内 · 英语(English)课 — 重点提升 D（沟通）6/8，参加语言中心写作工作坊」，而不是泛泛写“语言中心”。\n'+
+        '//    - 标「校内」的行动 title 必须点名**具体 IB MYP 学科课程 + 哪个四标准(A/B/C/D)需补强 + 康桥校内真实资源**，例如「校内 · 数学(Mathematics)课 — 报名「状元养成计划」AMC/AMC10 冲刺班，重点提升 B（探究与规律）6/8」，或「校内 · 英语(English)课 — 参加语言中心托福/雅思写作工作坊，重点提升 D（沟通）6/8」；不要泛泛写“语言中心”。康桥校内真实资源包括：学术专案组「状元养成计划」（AMC/AMC10、机器人、未来之城、模联、辩论等）、语言中心（托福/雅思标化与写作）。\n'+
         '//    - 标「校外」的：托福/雅思集训、暑期科研、国际竞赛报名等需校外补充的。\n'+
         '// 3) 每条 action 须关联档案真实字段（弱项/方向/标化/SA/竞赛活动/性格兴趣），reason 写清触发依据；性格与兴趣地图应转化为具体行动（如按 Holland 代码选社团、按兴趣地图深化项目）。\n'+
         '// 4) 若档案 swot 字段为 null（未录入老师评语），conclusion 末尾须注明“老师评语未录入，以下基于学科分数与档案其他字段推断”，并优先用分数弱项生成校内课程补救行动。\n'+
@@ -962,7 +967,7 @@
           title:it.title, reason:it.reason||'',
           scope:(it.scope==='校外'?'校外':'校内'),
           imp:it.importance||'中', urg:it.urgency||'中',
-          source:m.source, link:m.link
+          source:m.source, links:m.links
         };
       });
       actionsHtml = renderActions(norm, '以下行动由 MiniMax 实时分析生成，按「重要性 × 紧急性」排序，优先校内资源；每条附信息来源：');
