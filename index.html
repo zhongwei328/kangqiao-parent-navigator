@@ -768,7 +768,9 @@
   }
   function parseAI(text){
     try{
-      var m=text.match(/\{[\s\S]*\}/);
+      // 先剥掉模型可能自带的 ```json / ``` 围栏
+      var s = text.replace(/^[\s\S]*?```(?:json)?\s*/i, '').replace(/\s*```[\s\S]*$/, '').trim();
+      var m=s.match(/\{[\s\S]*\}/);
       if(!m) return null;
       var o=JSON.parse(m[0]);
       if(o && o.conclusion && Array.isArray(o.actions)) return o;
@@ -789,7 +791,7 @@
       var res = await fetch('https://api.minimax.chat/v1/text/chatcompletion_v2', {
         method:'POST',
         headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
-        body:JSON.stringify({model:'abab6.5s-chat', messages:[{role:'user',content:prompt}]}),
+        body:JSON.stringify({model:'abab6.5s-chat', max_tokens:1024, messages:[{role:'user',content:prompt}]}),
         signal:ctrl.signal
       });
       clearTimeout(to);
@@ -811,15 +813,16 @@
       ai = await callMiniMax(p, key);
       btn.disabled = false; btn.textContent = oldTxt;
     }
+    var aiFailed = !!(key && !ai);
     var concl = ai ? ('🤖 '+ai.conclusion) : conclusion(p, diag.avg);
     document.getElementById('kpi').innerHTML =
       '<div class="box"><b>'+(diag.avg)+'</b><span>IB 平均 Final Grade</span></div>'+
       '<div class="box"><b>'+SUBJ.filter(function(s){return p.subjects[s.key].score!=null;}).length+'/5</b><span>已录学科</span></div>'+
       '<div class="box"><b>'+(p.direction&&p.direction.length?p.direction.length+' 向':'—')+'</b><span>升学方向</span></div>'+
       '<div class="box"><b>'+(/德|german|germany/i.test(p.nationality||'')?'国际生池':'—')+'</b><span>申请身份</span></div>'+
-      (key?'<div class="box"><b>🤖 AI</b><span>实时分析</span></div>':'');
+      (key?'<div class="box"><b>'+(ai?'🤖 AI':'⚠️ AI 失败')+'</b><span>'+(ai?'实时分析':'已回退本地')+'</span></div>':'');
 
-    document.getElementById('rConclusion').innerHTML = '<p>'+concl+'</p>';
+    document.getElementById('rConclusion').innerHTML = '<p>'+concl+'</p>'+(aiFailed?'<p class="muted">⚠️ 实时 AI 分析未返回有效结果，已回退本地诊断（可重试或更换 Key）。</p>':'');
     document.getElementById('rDiag').innerHTML = diag.html;
     document.getElementById('rSwot').innerHTML = swot(p);
 
