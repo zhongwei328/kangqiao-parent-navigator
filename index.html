@@ -86,6 +86,9 @@
   ul.actions{margin:6px 0 0; padding-left:20px}
   ul.actions li{margin:9px 0; font-size:14px; line-height:1.45}
   ul.actions li .reason{display:block; font-size:12.5px; color:var(--muted); margin-top:3px; padding-left:2px; border-left:2px solid var(--line)}
+  ul.actions li .scope{display:inline-block; font-size:11.5px; font-weight:700; padding:1px 7px; border-radius:9px; margin-left:4px; vertical-align:1px}
+  ul.actions li .scope-in{background:var(--ok-soft); color:#1a7f37; border:1px solid #b7e4c7}
+  ul.actions li .scope-out{background:#eef2ff; color:#3b4cca; border:1px solid #c7d2fe}
   .kpi{display:flex; gap:10px; flex-wrap:wrap; margin:8px 0}
   .kpi .box{flex:1; min-width:120px; background:var(--accent-soft); border-radius:12px; padding:12px; text-align:center}
   .kpi .box b{display:block; font-size:22px; color:var(--accent)}
@@ -525,6 +528,9 @@
       t += ' 作为 <b>德国籍</b> 学生，申请港校属 <b>Non-JUPAS 国际生池</b>，可同时布局欧陆低免学费备选（德国 / 欧陆公立大学）。';
     } else if(p.nationality){ t += ' 国籍：'+escapeHtml(p.nationality)+'。'; }
     if(p.direction && p.direction.length){ t += ' 升学方向：<b>'+p.direction.map(escapeHtml).join('、')+'</b>。'; }
+    if(p.mbti) t += ' 性格测评（MBTI）：<b>'+escapeHtml(p.mbti)+'</b>。';
+    if(p.holland) t += ' Holland 兴趣代码：<b>'+escapeHtml(p.holland)+'</b>。';
+    if(p.interestMap) t += ' 兴趣地图：'+escapeHtml(p.interestMap)+'。';
     return t;
   }
 
@@ -760,6 +766,7 @@
       name:p.name, grade:p.grade, nationality:p.nationality,
       direction:p.direction, major:p.major, applyGrade:p.applyGrade,
       avgIB:ibDiag(p).avg, subjects:sp, saCount:p.saCount,
+      mbti:p.mbti, holland:(p.holland||'').split(',').filter(Boolean), interestMap:p.interestMap,
       englishTest:{toeflJunior:p.toeflJunior, toefl:p.toefl, ielts:p.ielts, sat:p.sat},
       competitions:(p.competitions||[]).map(function(c){return c.name+(c.level?'/'+c.level:'')+(c.res?'/'+c.res:'');}),
       activities:(p.activities||[]).map(function(a){return a.name+(a.role?'/'+a.role:'')+(a.desc?'/'+a.desc:'');}),
@@ -783,9 +790,13 @@
       var ap = buildAiProfile(p);
       var prompt = '你是国际学校（IB MYP）升学规划顾问。以下是某 G6-G9 学生的档案 JSON：\n'+JSON.stringify(ap)+
         '\n请基于真实数据做诊断，并用 JSON 返回（只返回 JSON，不要解释、不要 markdown 代码块）：\n'+
-        '{\n  "conclusion": "一段中文竞争力总览结论（含身份/升学方向维度，80字内）",\n'+
-        '  "actions": [ {"title":"行动标题","reason":"基于该生档案的具体触发原因"} ]\n}\n'+
-        '// actions 3-6 条，须可执行，且与档案弱项 / 升学方向 / 已录竞赛活动相关联；每条都要有 reason。';
+        '{\n'+
+        '  "conclusion": "一段中文竞争力总览结论（必须综合档案全部信息：学科强弱、身份/国籍、升学方向、英语标化、Service as Action、已录竞赛活动，以及性格测评 MBTI、Holland 兴趣代码、兴趣地图；点明该生的差异化竞争力与核心风险，120字内）",\n'+
+        '  "actions": [ {"title":"行动标题","reason":"基于该生档案某个具体字段的触发原因","scope":"校内 或 校外"} ]\n}\n'+
+        '// 要求：\n'+
+        '// 1) conclusion 必须覆盖 MBTI / Holland / 兴趣地图 与升学方向的匹配度，不能只谈成绩。\n'+
+        '// 2) actions 4-6 条；scope 字段只能取「校内」或「校外」：可优先用校内资源的（如语言中心、学科竞赛社团、状元养成计划、导师制、CAS/Service as Action 项目）标「校内」，需校外补充的（如托福/雅思集训、暑期科研、国际竞赛报名）标「校外」。\n'+
+        '// 3) 每条 action 须关联档案真实字段（弱项/方向/标化/SA/竞赛活动/性格兴趣），reason 写清触发依据；性格与兴趣地图应转化为具体行动（如按 Holland 代码选社团、按兴趣地图深化项目）。';
       var ctrl=new AbortController();
       var to=setTimeout(function(){ ctrl.abort(); }, 15000);
       var res = await fetch('https://api.minimax.chat/v1/text/chatcompletion_v2', {
@@ -845,11 +856,17 @@
 
     document.getElementById('rDirection').innerHTML = '<p>'+direction(p)+'</p>';
 
-    // 行动清单：有 Key 且 AI 成功 → 用实时 AI 行动；否则本地生成（含比赛/活动关联）
+    // 行动清单：有 Key 且 AI 成功 → 用实时 AI 行动（含校内/校外标签）；否则本地生成（含比赛/活动关联）
     var actionsHtml;
     if(aiOk && ai.actions && ai.actions.length){
-      actionsHtml = '<p class="muted">以下行动由 MiniMax 实时分析生成，每条均基于档案输入：</p><ul class="actions">';
-      ai.actions.forEach(function(it){ actionsHtml += '<li><b>'+escapeHtml(it.title)+'</b><span class="reason">原因：'+escapeHtml(it.reason)+'</span></li>'; });
+      actionsHtml = '<p class="muted">以下行动由 MiniMax 实时分析生成，优先校内资源、按档案字段触发：</p><ul class="actions">';
+      ai.actions.forEach(function(it){
+        var isOut = it.scope==='校外';
+        var scopeTxt = isOut ? '🌐 校外' : '🏫 校内';
+        actionsHtml += '<li><b>'+escapeHtml(it.title)+'</b> <span class="scope '+(isOut?'scope-out':'scope-in')+'">'+scopeTxt+'</span>';
+        if(it.reason) actionsHtml += '<span class="reason">原因：'+escapeHtml(it.reason)+'</span>';
+        actionsHtml += '</li>';
+      });
       actionsHtml += '</ul>';
     } else {
       actionsHtml = actions(p);
