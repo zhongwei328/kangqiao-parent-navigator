@@ -264,12 +264,14 @@
   function lsGet(k){ try{ return localStorage.getItem(k)||''; }catch(e){ return ''; } }
   function lsSet(k,v){ try{ if(v) localStorage.setItem(k,v); else localStorage.removeItem(k); }catch(e){} }
   var SUBJ = [
-    {key:'math',      name:'数学',   re:/mathematics|math|数学/i},
-    {key:'english',   name:'英语',   re:/english|英语/i},
-    {key:'science',   name:'科学',   re:/sciences?|科学/i},
-    {key:'chinese',   name:'中文',   re:/chinese|中文/i},
-    {key:'humanities',name:'人文社科',re:/individuals\s+and\s+societies|humanities|人文/i}
+    {key:'math',      name:'数学', en:'Mathematics', re:/mathematics|math|数学/i},
+    {key:'english',   name:'英语', en:'English',      re:/english|英语/i},
+    {key:'science',   name:'科学', en:'Sciences',     re:/sciences?|科学/i},
+    {key:'chinese',   name:'中文', en:'Chinese',      re:/chinese|中文/i},
+    {key:'humanities',name:'人文社科', en:'Individuals & Societies', re:/individuals\s+and\s+societies|humanities|人文/i}
   ];
+  // IB MYP 四标准（A/B/C/D）通用中文名，用于把弱项指向具体课程模块
+  var CRIT_NAME = {A:'知识与理解', B:'探究与规律', C:'沟通', D:'应用与反思'};
 
   // ---- 渲染学科输入区 ----
   var subjectsBox = document.getElementById('subjects');
@@ -558,13 +560,6 @@
     return t;
   }
 
-  var ACTION_MAP = {
-    math:['状元养成计划（数学拔尖）','AMC / 高阶数学社团'],
-    english:['语言中心 English Support','演讲与辩论社团'],
-    science:['科学竞赛社团（如 BC 生物 / 物理）','实验室科研体验'],
-    chinese:['语言中心 中文写作','校园创作 / 文学社团'],
-    humanities:['模拟联合国 / 人文社团','Service as Action 社会服务与行动']
-  };
   function extracurricular(p){
     var comps = p.competitions||[], acts = p.activities||[];
     if(!comps.length && !acts.length) return null;
@@ -582,17 +577,23 @@
   function actions(p){
     var items=[];
     function add(title, reason){ items.push({title:title, reason:reason}); }
-    // 1) 学科弱项（基于录入的四标准 / Final）
+    // 1) 学科弱项（基于录入的四标准 / Final）→ 具体校内课程 + 标准
     SUBJ.forEach(function(s){
       var subj=p.subjects[s.key];
       if(subj.score==null && !subj.a && !subj.b && !subj.c && !subj.d) return;
       var weak = critList(subj).filter(function(c){return c.n<=6;});
       if(!(subj.score!=null && subj.score<=6) && !weak.length) return;
+      var focus;
+      if(weak.length){
+        focus = '重点提升 '+weak.map(function(c){ return c.L+'（'+(CRIT_NAME[c.L]||'标准')+'）'+c.n+'/8'; }).join('、');
+      } else {
+        focus = '巩固 Final '+subj.score+'/7 档，保持四标准 ≥7';
+      }
       var parts=[];
-      if(subj.score!=null && subj.score<=6) parts.push(s.name+' Final Grade '+subj.score+'/7（低于 7 分档）');
-      if(weak.length) parts.push(s.name+' 四标准弱项：'+weak.map(function(c){return c.L+c.n;}).join('、'));
-      var reason = '基于档案录入：'+parts.join('；')+'。';
-      (ACTION_MAP[s.key]||[]).forEach(function(r){ add('校内 · '+r, reason); });
+      if(subj.score!=null && subj.score<=6) parts.push('Final '+subj.score+'/7（低于 7 分档）');
+      if(weak.length) parts.push('四标准弱项 '+weak.map(function(c){return c.L+c.n;}).join('、'));
+      var reason = '基于档案录入：'+s.name+' '+(parts.join('；')||'（分数偏低）')+'——对应校内课程 '+s.name+'课（'+s.en+'）需针对性补强。';
+      add('校内 · '+s.name+'课（'+s.en+'）— '+focus, reason);
     });
     // 2) 升学方向联动（基于录入方向 + 标化字段）
     var dirTxt = (p.direction||[]).join('、');
@@ -741,7 +742,31 @@
   }
   function swot(p){
     var s = summarizeComments(p);
-    if(!s) return '<p class="muted">未录入老师评语（建议补填，报告将引用优点与改进点）。</p>';
+    if(!s){
+      // 未录入老师评语：从学科分数反推优点 / 待改进，保证诊断完整（呼应“考虑档案所有信息”）
+      var str=[], imp=[];
+      SUBJ.forEach(function(sub){
+        var subj=p.subjects[sub.key];
+        if(subj.score==null && !subj.a && !subj.b && !subj.c && !subj.d) return;
+        var weak = critList(subj).filter(function(c){return c.n<=6;});
+        if(subj.score!=null && subj.score>=7 && weak.length===0){
+          str.push(sub.name+'课 成绩稳健（Final '+subj.score+'/7，四标准全 ≥7）');
+        }
+        if(subj.score!=null && subj.score<=6) imp.push(sub.name+'课 Final '+subj.score+'/7 低于 7 分档');
+        weak.forEach(function(c){ imp.push(sub.name+'课 '+c.L+'（'+(CRIT_NAME[c.L]||'标准')+'）'+c.n+'/8 偏弱'); });
+      });
+      var note = '<p class="muted">未录入老师评语，以下基于学科分数推断（建议补填评语以获得老师视角的优点与改进点）。</p>';
+      if(!str.length && !imp.length) return note+'<p class="muted">暂无可分析的学科数据，请先录入成绩。</p>';
+      var h = note + '<div class="swot2">';
+      h += '<div class="swot-col ok"><div class="swot-h">🌟 主要优点（分数推断）</div><ul class="diag">';
+      h += str.length ? str.map(function(x){return '<li>'+escapeHtml(x)+'</li>';}).join('') : '<li class="muted">暂无显著高分项</li>';
+      h += '</ul></div>';
+      h += '<div class="swot-col warn"><div class="swot-h">🔧 主要待改进点（分数推断）</div><ul class="diag">';
+      h += imp.length ? imp.map(function(x){return '<li>'+escapeHtml(x)+'</li>';}).join('') : '<li class="muted">分数无弱项</li>';
+      h += '</ul></div>';
+      h += '</div>';
+      return h;
+    }
     var h = '<div class="swot2">';
     h += '<div class="swot-col ok"><div class="swot-h">🌟 主要优点</div><ul class="diag">';
     h += s.strengths.length ? s.strengths.map(function(x){return '<li>'+escapeHtml(x)+'</li>';}).join('') : '<li class="muted">评语中未显式标注优点</li>';
@@ -795,8 +820,11 @@
         '  "actions": [ {"title":"行动标题","reason":"基于该生档案某个具体字段的触发原因","scope":"校内 或 校外"} ]\n}\n'+
         '// 要求：\n'+
         '// 1) conclusion 必须覆盖 MBTI / Holland / 兴趣地图 与升学方向的匹配度，不能只谈成绩。\n'+
-        '// 2) actions 4-6 条；scope 字段只能取「校内」或「校外」：可优先用校内资源的（如语言中心、学科竞赛社团、状元养成计划、导师制、CAS/Service as Action 项目）标「校内」，需校外补充的（如托福/雅思集训、暑期科研、国际竞赛报名）标「校外」。\n'+
-        '// 3) 每条 action 须关联档案真实字段（弱项/方向/标化/SA/竞赛活动/性格兴趣），reason 写清触发依据；性格与兴趣地图应转化为具体行动（如按 Holland 代码选社团、按兴趣地图深化项目）。';
+        '// 2) actions 4-6 条；scope 字段只能取「校内」或「校外」。\n'+
+        '//    - 标「校内」的行动 title 必须点名**具体 IB MYP 学科课程 + 哪个四标准(A/B/C/D)需补强**，例如「校内 · 英语(English)课 — 重点提升 D（沟通）6/8，参加语言中心写作工作坊」，而不是泛泛写“语言中心”。\n'+
+        '//    - 标「校外」的：托福/雅思集训、暑期科研、国际竞赛报名等需校外补充的。\n'+
+        '// 3) 每条 action 须关联档案真实字段（弱项/方向/标化/SA/竞赛活动/性格兴趣），reason 写清触发依据；性格与兴趣地图应转化为具体行动（如按 Holland 代码选社团、按兴趣地图深化项目）。\n'+
+        '// 4) 若档案 swot 字段为 null（未录入老师评语），conclusion 末尾须注明“老师评语未录入，以下基于学科分数与档案其他字段推断”，并优先用分数弱项生成校内课程补救行动。';
       var ctrl=new AbortController();
       var to=setTimeout(function(){ ctrl.abort(); }, 15000);
       var res = await fetch('https://api.minimax.chat/v1/text/chatcompletion_v2', {
