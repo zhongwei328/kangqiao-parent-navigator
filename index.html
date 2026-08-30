@@ -411,7 +411,7 @@
         for(var j=i+1; j<Math.min(i+6,lines.length); j++){
           var t=lines[j].trim();
           var m1=t.match(/^(\d{1,2})$/); if(m1){ var n=parseInt(m1[1],10); if(n>=1&&n<=7&&fg==null) fg=n; }
-          var m4=t.match(/^(\d)\s+(\d)\s+(\d)\s+(\d)$/); if(m4) abcd=[+m4[1],+m4[2],+m4[3],+m4[4]];
+          var m4=t.match(/(\d)\s+(\d)\s+(\d)\s+(\d)(?:\s+\S+)*$/); if(m4 && abcd==null) abcd=[+m4[1],+m4[2],+m4[3],+m4[4]];
         }
         if(fg!=null || abcd!=null) scores[key]={fg:fg, abcd:abcd};
       }
@@ -441,33 +441,29 @@
       if(ab){ ['A','B','C','D'].forEach(function(K,ki){ if(ab[ki]!=null) setV('subject_'+K.toLowerCase()+'_'+s.key, ab[ki]); }); count++; found.push(s.name+'四标准'); }
     });
 
-    // ---- 老师评语：从详情段按"最近科目头"归属，跳过分页噪声 ----
-    var NOISE=/Henry\s*Mu|Kang Chiao|Academic Yearly Report|^Page \d|No\.\s*\d|Xihuan|Huaqiao|Kunshan|Jiangsu|215332|Interdisciplinary|Boundaries|Grade\s+Descriptor|^\s*$/i;
-    var headers=[];
-    for(var hi=sumEnd; hi<lines.length; hi++){
-      for(var k=0;k<SUBJ.length;k++){
-        if(SUBJ[k].re.test(lines[hi]) && (/g7\s/i.test(lines[hi]) || /phase\s*3/i.test(lines[hi]))){ headers.push({i:hi,key:SUBJ[k].key}); break; }
-      }
-    }
-    var commentsMap={};
-    headers.forEach(function(H,idx){
-      var nextPos=(idx+1<headers.length)? headers[idx+1].i : lines.length;
-      for(var i=H.i; i<nextPos; i++){
-        if(/comments?\s*:/i.test(lines[i])){
-          var txt=[];
-          for(var j=i+1; j<Math.min(nextPos, i+25); j++){
-            var l=lines[j].trim();
-            if(/^[A-Z][a-z]+ [A-Z][a-z]+:/.test(l) && /G7|Phase|Language|Individual|Science|Math|Music|Visual|Physical|Design|Adventure/i.test(l)) break;
-            if(/^\s*Comments:\s*$/i.test(l)) break;
-            if(NOISE.test(l)){ if(txt.length) break; else continue; }
-            txt.push(l);
-          }
-          commentsMap[H.key]=txt.join(' ').replace(/\s+/g,' ').trim(); break;
-        }
-      }
-    });
+    // ---- 老师评语：跨格式通用抓取（不再依赖 G7/Phase3；捕获所有 Comments 块并关联最近科目）----
     var commentsAll=[];
-    SUBJ.forEach(function(s){ if(commentsMap[s.key]) commentsAll.push(s.name+'：'+commentsMap[s.key]); });
+    var SUBJ_LABEL={ 'language and literature':'中文课','chinese':'中文课','language acquisition':'英语课','english':'英语课','mathematics':'数学课','math':'数学课','sciences':'科学课','science':'科学课','individuals and societies':'人文社科课','social emotional':'社会情感课','music':'音乐课','design':'设计课','swimming':'游泳课','physical and health education':'体育与健康教育课','adventure education':'冒险教育课' };
+    var SUBJ_LABEL_RE=new RegExp('('+Object.keys(SUBJ_LABEL).map(function(x){return x.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');}).join('|')+')','ig');
+    for(var ci=0; ci<lines.length; ci++){
+      if(!/comments?\s*:/i.test(lines[ci])) continue;
+      var txt=[];
+      for(var j=ci+1; j<Math.min(ci+30, lines.length); j++){
+        var l=lines[j].trim();
+        if(!l) continue;
+        if(/^Grade\s+1\s+2\s+3/i.test(l) || /^Boundaries/i.test(l) || /^Totals:/i.test(l) || /^Final Grade/i.test(l) || /Kang Chiao|Henry\s*Mu|Page\s+\d|No\.\s*\d|Xihuan|Huaqiao|Kunshan|Jiangsu|215332/i.test(l)) break;
+        txt.push(l);
+      }
+      var body=txt.join(' ').replace(/\s+/g,' ').trim();
+      if(!body) continue;
+      // 关联最近的前方科目头（class-report 页头或 summary 行），映射到演示用中文科目名
+      var label='老师评语';
+      for(var k=ci-1; k>=0; k--){
+        var all=lines[k].match(SUBJ_LABEL_RE);
+        if(all && all.length){ label=SUBJ_LABEL[all[all.length-1].toLowerCase()]; break; }
+      }
+      commentsAll.push(label+'：'+body);
+    }
     if(commentsAll.length){ setV('teacherComment', commentsAll.join('\n')); count++; found.push('老师评语'); }
 
     // 高亮学业成绩区
