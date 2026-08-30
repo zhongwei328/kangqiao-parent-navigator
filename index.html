@@ -1144,7 +1144,7 @@
       '<div class="box"><b>'+SUBJ.filter(function(s){return p.subjects[s.key].score!=null;}).length+'/5</b><span>已录学科</span></div>'+
       '<div class="box"><b>'+(p.direction&&p.direction.length?p.direction.length+' 向':'—')+'</b><span>升学方向</span></div>'+
       '<div class="box"><b>'+(/德|german|germany/i.test(p.nationality||'')?'国际生池':'—')+'</b><span>申请身份</span></div>'+
-      (key?'<div class="box"><b>'+(aiOk?'🤖 AI':'⚠️ AI 失败')+'</b><span>'+(aiOk?'实时分析':'已回退本地')+'</span></div>':'');
+      '<div class="box"><b>'+(key?(aiOk?'🤖 AI 实时诊断':'⚠️ AI 失败'):'🧮 本地诊断')+'</b><span>'+(key?(aiOk?'MiniMax 动态生成':'已回退本地诊断')+' · 随档案动态更新':'未填 AI Key · 随档案动态生成')+'</span></div>';
 
     document.getElementById('rConclusion').innerHTML = conclHtml+(aiFailed?'<div class="ai-err">⚠️ 实时 AI 分析未成功，已回退本地诊断。<br><b>原因：</b>'+(aiErr?escapeHtml(aiErr):'未捕获（请重试）')+'<br><span class="muted">按上方原因排查后重新粘贴 Key，或检查网络，再点「生成诊断报告」即可。</span></div>':'');
     document.getElementById('rDiag').innerHTML = diag.html;
