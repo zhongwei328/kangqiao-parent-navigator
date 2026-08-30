@@ -59,6 +59,9 @@
   #pdfStatus.ok{background:var(--ok-soft); color:var(--ok)}
   #pdfStatus.warn{background:var(--warn-soft); color:var(--warn)}
   #pdfStatus.err{background:#fdecec; color:#b91c1c}
+  .selftest{display:inline-block; margin-top:6px; font-size:12.5px; color:var(--accent); text-decoration:underline; cursor:pointer}
+  .critnames{display:flex; gap:6px; font-size:11px; color:var(--muted); margin:0 0 5px}
+  .critnames span{flex:1; text-align:center; line-height:1.25}
   details.adv{margin-top:14px; font-size:13px; color:var(--muted)}
   details.adv summary{cursor:pointer}
   /* report */
@@ -138,6 +141,19 @@
   <section class="card" id="intake">
     <h2><span class="dot"></span>学生档案录入</h2>
 
+    <p class="hint" style="margin:0 0 4px">建议先上传学校 PDF 报告，系统自动抽取字段加速填写；没有 PDF 也完全可以手动填下面的每一项。</p>
+    <div class="pdfzone">
+      <label style="margin-top:0">📄 上传学校 PDF 报告（自动抽取辅助填表）</label>
+      <input id="pdfFile" type="file" accept="application/pdf" />
+      <div id="pdfStatus"></div>
+      <p class="hint">解析失败也不会阻塞——未识别的字段可手动补。PDF 仅是"加速"，不是必需。</p>
+      <details style="margin-top:8px">
+        <summary class="muted" style="cursor:pointer;font-size:13px">无 PDF？粘贴报告原文自助识别</summary>
+        <textarea id="pasteText" placeholder="把 PDF 里的纯文本粘贴到这里" style="margin-top:8px"></textarea>
+        <button class="btn ghost sm" id="reparseBtn" type="button">粘贴原文重新识别</button>
+      </details>
+    </div>
+
     <div class="grid2">
       <div><label>姓名</label><input id="name" placeholder="如 Henry Mu" /></div>
       <div><label>年级</label><input id="grade" placeholder="如 7（G7）" inputmode="numeric" /></div>
@@ -177,6 +193,7 @@
           <option>ESTP</option><option>ESFP</option><option>ENFP</option><option>ENTP</option>
           <option>ESTJ</option><option>ESFJ</option><option>ENFJ</option><option>ENTJ</option>
         </datalist>
+        <a class="selftest" href="https://www.16personalities.com/zh-cn" target="_blank" rel="noopener">🔗 免费自测 MBTI（约10分钟，出完整 16 型结果）</a>
       </div>
       <div>
         <label style="margin:0 0 4px">Holland 代码（可多选）</label>
@@ -188,10 +205,12 @@
           <label class="chip"><input type="checkbox" value="E" />E 企业型</label>
           <label class="chip"><input type="checkbox" value="C" />C 常规型</label>
         </div>
+        <a class="selftest" href="https://psyctest.cn/t/Aexw8kdQ?lang=zh-Hant" target="_blank" rel="noopener">🔗 免费自测 Holland 代码（无需注册，即时出 RIASEC 三码）</a>
       </div>
     </div>
     <label style="margin-top:10px">兴趣地图（标签 / 自由描述）</label>
     <textarea id="interestMap" placeholder="如 生物 · 编程 · 辩论 · 写作 · 机器人"></textarea>
+    <a class="selftest" href="https://www.mynextmove.org/explore/ip" target="_blank" rel="noopener">🔗 免费自测兴趣地图（O*NET 兴趣剖析，无需注册，出兴趣领域图）</a>
 
     <label style="margin-top:10px">学业成绩（IB MYP · 四标准 A/B/C/D 各 0–8 + Final 1–7）</label>
     <div id="subjects"></div>
@@ -227,18 +246,6 @@
 
     <label style="margin-top:10px">老师评语（优点 + 改进点）</label>
     <textarea id="teacherComment" placeholder="粘贴学校报告中的 Comments / 老师评语，报告将引用其优点与改进点"></textarea>
-
-    <div class="pdfzone" style="margin-top:14px">
-      <label style="margin-top:0">📄 上传学校 PDF 报告（自动抽取辅助填表）</label>
-      <input id="pdfFile" type="file" accept="application/pdf" />
-      <div id="pdfStatus"></div>
-      <p class="hint">解析失败也不会阻塞——未识别的字段可手动补。PDF 仅是"加速"，不是必需。</p>
-      <details style="margin-top:8px">
-        <summary class="muted" style="cursor:pointer;font-size:13px">无 PDF？粘贴报告原文自助识别</summary>
-        <textarea id="pasteText" placeholder="把 PDF 里的纯文本粘贴到这里" style="margin-top:8px"></textarea>
-        <button class="btn ghost sm" id="reparseBtn" type="button">粘贴原文重新识别</button>
-      </details>
-    </div>
 
     <details class="adv">
       <summary>进阶设置（可选）：粘贴 MiniMax Key 让 AI 润色结论</summary>
@@ -285,8 +292,22 @@
     {key:'chinese',   name:'中文', en:'Chinese',      re:/chinese|中文/i,          prog:'状元养成计划 · 人文板块（演讲 / 写作社团）'},
     {key:'humanities',name:'人文社科', en:'Individuals & Societies', re:/individuals\s+and\s+societies|humanities|人文/i, prog:'状元养成计划 · 模拟联合国 / 辩论'}
   ];
-  // IB MYP 四标准（A/B/C/D）通用中文名，用于把弱项指向具体课程模块
-  var CRIT_NAME = {A:'知识与理解', B:'探究与规律', C:'沟通', D:'应用与反思'};
+  // IB MYP 各科目官方评估标准（A/B/C/D）中文名 —— 按科目分别给出，避免通用名与各科 rubric 不符
+  // 官方英文对应：数学(Knowing and understanding / Investigating patterns / Communicating / Applying mathematics in real-world contexts)
+  //   科学(Knowing and understanding / Inquiring and designing / Processing and evaluating / Reflecting on the impacts of science)
+  //   个人与社会(Knowing and understanding / Investigating / Communicating / Thinking critically)
+  //   语言与文学(Analysing / Organizing / Producing text / Using language)
+  var CRIT_NAME = {
+    math:      {A:'了解和理解', B:'探究规律', C:'交流', D:'在现实生活中应用数学'},
+    english:   {A:'分析', B:'组织', C:'表达', D:'使用语言'},
+    chinese:   {A:'分析', B:'组织', C:'表达', D:'使用语言'},
+    science:   {A:'了解和理解', B:'探究与设计', C:'处理与评估', D:'反思科学的影响'},
+    humanities:{A:'了解和理解', B:'调查', C:'交流', D:'批判性思考'}
+  };
+  // 取某科目某标准的官方中文名（兜底回显「标准L」）
+  function critName(subjKey, L){
+    return (CRIT_NAME[subjKey] && CRIT_NAME[subjKey][L]) ? CRIT_NAME[subjKey][L] : ('标准'+L);
+  }
 
   // ---- 渲染学科输入区 ----
   var subjectsBox = document.getElementById('subjects');
@@ -295,7 +316,8 @@
     d.className = 'subj'; d.id = 'subj_'+s.key;
     d.innerHTML =
       '<div class="row">'+
-        '<div><label style="margin:0 0 4px">'+s.name+'（四标准 A/B/C/D 各 0–8）</label>'+
+        '<div><label style="margin:0 0 4px">'+s.name+'（IB MYP 四标准，各 0–8）</label>'+
+          '<div class="critnames">'+['A','B','C','D'].map(function(L){return '<span>'+L+' '+critName(s.key,L)+'</span>';}).join('')+'</div>'+
           '<div class="critgrid">'+
             '<input id="subject_a_'+s.key+'" type="number" min="0" max="8" placeholder="A" inputmode="numeric" />'+
             '<input id="subject_b_'+s.key+'" type="number" min="0" max="8" placeholder="B" inputmode="numeric" />'+
@@ -694,7 +716,7 @@
       var weak = critList(subj).filter(function(c){return c.n<=6;});
       if(!(subj.score!=null && subj.score<=6) && !weak.length) return;
       var focus = weak.length
-        ? '重点提升 '+weak.map(function(c){ return c.L+'（'+(CRIT_NAME[c.L]||'标准')+'）'+c.n+'/8'; }).join('、')
+        ? '重点提升 '+weak.map(function(c){ return c.L+'（'+critName(s.key,c.L)+'）'+c.n+'/8'; }).join('、')
         : '巩固 Final '+subj.score+'/7 档，保持四标准 ≥7';
       var parts=[];
       if(subj.score!=null && subj.score<=6) parts.push('Final '+subj.score+'/7（低于 7 分档）');
@@ -907,7 +929,7 @@
           str.push(sub.name+'课 成绩稳健（Final '+subj.score+'/7，四标准全 ≥7）');
         }
         if(subj.score!=null && subj.score<=6) imp.push(sub.name+'课 Final '+subj.score+'/7 低于 7 分档');
-        weak.forEach(function(c){ imp.push(sub.name+'课 '+c.L+'（'+(CRIT_NAME[c.L]||'标准')+'）'+c.n+'/8 偏弱'); });
+        weak.forEach(function(c){ imp.push(sub.name+'课 '+c.L+'（'+critName(sub.key,c.L)+'）'+c.n+'/8 偏弱'); });
       });
       var note = '<p class="muted">未录入老师评语，以下基于学科分数推断（建议补填评语以获得老师视角的优点与改进点）。</p>';
       if(!str.length && !imp.length) return note+'<p class="muted">暂无可分析的学科数据，请先录入成绩。</p>';
