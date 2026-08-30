@@ -795,10 +795,19 @@
         signal:ctrl.signal
       });
       clearTimeout(to);
+      if(!res.ok){
+        var errBody = await res.text().catch(function(){ return ''; });
+        return { error:'HTTP '+res.status+' '+res.statusText+'：'+(errBody||'').slice(0,200) };
+      }
       var data = await res.json();
       var text = (data && (data.reply || (data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content))) || '';
-      return parseAI(text);
-    }catch(e){ return null; }
+      var parsed = parseAI(text);
+      if(parsed) return parsed;
+      return { error:'返回内容非有效 JSON（可能模型截断或格式异常）：'+(text||'').slice(0,200) };
+    }catch(e){
+      var msg = (e && e.name==='AbortError') ? '请求超时（15s）' : ((e&&e.message)||String(e));
+      return { error: msg };
+    }
   }
 
   // ---- 生成报告 ----
@@ -813,16 +822,18 @@
       ai = await callMiniMax(p, key);
       btn.disabled = false; btn.textContent = oldTxt;
     }
-    var aiFailed = !!(key && !ai);
-    var concl = ai ? ('🤖 '+ai.conclusion) : conclusion(p, diag.avg);
+    var aiOk = !!(ai && !ai.error);
+    var aiFailed = !!(key && !aiOk);
+    var aiErr = (ai && ai.error) ? ai.error : '';
+    var concl = aiOk ? ('🤖 '+ai.conclusion) : conclusion(p, diag.avg);
     document.getElementById('kpi').innerHTML =
       '<div class="box"><b>'+(diag.avg)+'</b><span>IB 平均 Final Grade</span></div>'+
       '<div class="box"><b>'+SUBJ.filter(function(s){return p.subjects[s.key].score!=null;}).length+'/5</b><span>已录学科</span></div>'+
       '<div class="box"><b>'+(p.direction&&p.direction.length?p.direction.length+' 向':'—')+'</b><span>升学方向</span></div>'+
       '<div class="box"><b>'+(/德|german|germany/i.test(p.nationality||'')?'国际生池':'—')+'</b><span>申请身份</span></div>'+
-      (key?'<div class="box"><b>'+(ai?'🤖 AI':'⚠️ AI 失败')+'</b><span>'+(ai?'实时分析':'已回退本地')+'</span></div>':'');
+      (key?'<div class="box"><b>'+(aiOk?'🤖 AI':'⚠️ AI 失败')+'</b><span>'+(aiOk?'实时分析':'已回退本地')+'</span></div>':'');
 
-    document.getElementById('rConclusion').innerHTML = '<p>'+concl+'</p>'+(aiFailed?'<p class="muted">⚠️ 实时 AI 分析未返回有效结果，已回退本地诊断（可重试或更换 Key）。</p>':'');
+    document.getElementById('rConclusion').innerHTML = '<p>'+concl+'</p>'+(aiFailed?'<p class="muted">⚠️ 实时 AI 分析未成功：'+(aiErr?escapeHtml(aiErr):'已回退本地诊断')+'。可重试或检查网络/Key。</p>':'');
     document.getElementById('rDiag').innerHTML = diag.html;
     document.getElementById('rSwot').innerHTML = swot(p);
 
@@ -836,7 +847,7 @@
 
     // 行动清单：有 Key 且 AI 成功 → 用实时 AI 行动；否则本地生成（含比赛/活动关联）
     var actionsHtml;
-    if(ai && ai.actions && ai.actions.length){
+    if(aiOk && ai.actions && ai.actions.length){
       actionsHtml = '<p class="muted">以下行动由 MiniMax 实时分析生成，每条均基于档案输入：</p><ul class="actions">';
       ai.actions.forEach(function(it){ actionsHtml += '<li><b>'+escapeHtml(it.title)+'</b><span class="reason">原因：'+escapeHtml(it.reason)+'</span></li>'; });
       actionsHtml += '</ul>';
