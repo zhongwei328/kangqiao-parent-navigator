@@ -771,19 +771,33 @@
 
   function roadmap(p){
     var g = parseInt(p.grade||'7',10);
-    var ag = parseInt(p.applyGrade||'12',10);
-    if(!(ag > g)) ag = g + 1; // 申请年须晚于当前年级；申请目标年级未填时默认 G12
-    var dirTxt = (p.direction||[]).join(' / ') || '目标院校';
-    var nodes = [];
-    nodes.push({cls:'cur', label:'G'+g+'（当前 · 录入年级）', html:'巩固 IB MYP 各科 7 分档；补全 Service as Action（IB 硬性 7/7）；启动英语标化（TOEFL Junior → TOEFL / IELTS）。'});
-    if(ag-1 > g){
-      var mid = g + Math.ceil((ag - g)/2);
-      if(mid > ag-1) mid = ag-1;
-      if(mid > g) nodes.push({cls:'mid', label:'G'+mid+'（DP 准备）', html:'确定 DP 选课方向（Math AA HL / Bio HL 等）；高阶竞赛获奖；语言中心强化写作与标化；按 Holland 代码 / 兴趣地图深化社团领导力与项目深度。'});
+    if(isNaN(g)||g<1||g>12) g = 7;
+    var ag = parseInt(p.applyGrade,10); // 可能为 NaN（未录入）
+    var applyInRange = !isNaN(ag) && ag>=g && ag<=12;
+    var dirAnchor = (p.direction&&p.direction.length)?p.direction.join('、'):'目标院校';
+    var end = 12; if(g>end) end = g; // 路线始终列到 G12（毕业 / 申请提交年）
+    function phaseText(y){
+      if(y<=9){ // MYP 阶段
+        if(y===g) return '巩固 IB MYP 各科 Final 7 分档；补全 Service as Action（IB 硬性 7/7）；启动英语标化（TOEFL Junior → TOEFL / IELTS）。';
+        if(y===9) return '确定 DP 选课方向（Math AA HL / Bio HL / Chem HL 等）；语言中心强化写作与标化；冲刺高阶竞赛（AMC10/AMC12、BC 生物等）。';
+        return '深化学科竞赛（AMC10/AMC12、BC 生物等）；参与校内社团与领导力；保持 Service as Action 持续完成。';
+      }
+      if(y===10) return 'DP 正式开课；Math AA HL / 科学 HL 冲 7；语言中心托福 / 雅思首考达标；启动科研或深度项目。';
+      if(y===11) return 'DP 预估分冲刺（目标 40+，康桥近三届 40+ 高分段约 18%-23%）；高阶竞赛 / 科研产出；文书素材积累；推荐信铺垫。';
+      if(y===12) return 'DP 最终大考；提交 '+escapeHtml(dirAnchor)+' 申请；同步准备欧陆低免学费 / 多国联申备选。';
+      return '持续强化学术与活动主线，为下一阶段做准备。';
     }
-    nodes.push({cls:'app', label:'G'+ag+'（申请年 · 申请目标年级）', html:'DP 冲刺；提交 <b>'+escapeHtml(dirTxt)+'</b> 申请（G'+ag+' 申请），同步准备欧陆 / 多国联申备选。'});
+    var nodes = [];
+    for(var y=g; y<=end; y++){
+      var tags = [];
+      if(y===g) tags.push('当前 · 录入年级');
+      if(applyInRange && y===ag) tags.push('申请目标年级');
+      var cls = (applyInRange && y===ag) ? 'timeline-app' : '';
+      var label = 'G'+y + (tags.length ? ('（'+tags.join(' · ')+'）') : '');
+      nodes.push({cls:cls, label:label, txt:phaseText(y)});
+    }
     return '<ol class="timeline">'+nodes.map(function(n){
-      return '<li'+(n.cls==='app'?' class="timeline-app"':'')+'><b>'+n.label+'</b>：'+n.html+'</li>';
+      return '<li'+(n.cls?' class="'+n.cls+'"':'')+'><b>'+n.label+'</b>：'+n.txt+'</li>';
     }).join('')+'</ol>';
   }
 
@@ -984,6 +998,10 @@
         '2) 校内资源白名单：提到校内资源时只能从下列选择，不得自创项目名——学术专案组「状元养成计划」（含 AMC/AMC10、机器人、未来之城、模联、辩论等）、语言中心（托福 / 雅思标化与写作）、机器人社、模拟联合国社、辩论社、演讲 / 写作社团。\n'+
         '3) 家长可读性：专业术语首次出现须用括号一句白话解释（例：D 标准（IB 评分的四个维度之一，衡量知识运用与反思）；Non-JUPAS（不以香港高考成绩申请的国际生通道）；Service as Action（IB 要求的社区服务，须完成 7 项））。表述用“当前位置 + 差距 + 可补路径”，禁止绝对化判断（如“很难录取”“希望不大”“基本没戏”）。\n'+
         '4) 防标签化：MBTI / Holland / 兴趣地图不得只贴标签（如“ESTP，性格外向活泼”），必须落到“专业方向匹配度 + 学习方式建议”，并注明“性格测评仅作参考，不作为录取依据”。\n\n'+
+        '【竞争基准（康桥近三届 IB 升学数据，来源：校方公开披露 / 团队爬取，DP 阶段）】\n'+
+        '• DP 毕业班均分约 35-36 分；40+ 高分段约占总人数 18%-23%。\n'+
+        '• 目标校水位：港三全奖 / 牛剑 / 美 Top30 通常需 DP 预测分 40+ 且具差异化竞争力与硬标化；MYP Final 平均 ≥6.5/7 大致对应 DP 40+ 潜力区间。\n'+
+        '• 注意：全奖具体人数 / 申请分母等精细数据校方未公开，仅作水位参考，不得写成校方已确认的精确结论。\n\n'+
         '【输出格式】只返回 JSON（不要解释、不要 markdown 代码块）：\n'+
         '{\n'+
         '  "conclusion": {\n'+
@@ -1001,13 +1019,14 @@
         '// 3) 每条 action 须关联档案真实字段，reason 写清触发依据；性格与兴趣地图须转化为具体行动（按 Holland 代码选社团、按兴趣地图深化项目）。\n'+
         '// 4) 若档案 swot 字段为 null（未录入老师评语），conclusion 中须注明“老师评语未录入，以下基于学科分数与档案其他字段推断”，并优先用分数弱项生成校内课程补救行动。\n'+
         '// 5) 每条 action 必填 importance 与 urgency（取值 高/中/低）。Service as Action 未达标须标 urgency=高、importance=高；学科成绩短板 importance 至少 中。\n'+
-        '// 6) 时间窗：档案含 yearsToApply（距申请还有 X 年）。urgency 与 nextWindow 必须基于剩余窗口判定——若 yearsToApply 较大（如 ≥4 年），当前紧急项仅限 IB 毕业硬性门槛（Service as Action）与基础标化启动；nextWindow 须是本学期即可启动、指向白名单内康桥校内项目的具体动作，不要写需多年才见效的事；可在 conclusion 中提示“尚有余裕，中长期可布局 XX”。';
+        '// 6) 时间窗：档案含 yearsToApply（距申请还有 X 年）。urgency 与 nextWindow 必须基于剩余窗口判定——若 yearsToApply 较大（如 ≥4 年），当前紧急项仅限 IB 毕业硬性门槛（Service as Action）与基础标化启动；nextWindow 须是本学期即可启动、指向白名单内康桥校内项目的具体动作，不要写需多年才见效的事；可在 conclusion 中提示“尚有余裕，中长期可布局 XX”。\n'+
+        '// 7) 竞争基准量化：prompt 内含【竞争基准】。conclusion 须用均分水位量化“该生距目标校（如 40+ 高分段，康桥近三届约 18%-23%）还差多少”，而非泛泛“竞争力优秀”；若 MYP Final 均分已达 ≥6.5/7 可点明“已具 DP 40+ 潜力、须保持并冲 HL 7”，否则给出把 Final 提到 7 的学术路径；risks 须给出缩小差距的具体学术动作。';
       var ctrl=new AbortController();
       var to=setTimeout(function(){ ctrl.abort(); }, 15000);
       var res = await fetch('https://api.minimax.chat/v1/text/chatcompletion_v2', {
         method:'POST',
         headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
-        body:JSON.stringify({model:'abab6.5s-chat', max_tokens:1024, messages:[{role:'user',content:prompt}]}),
+        body:JSON.stringify({model:'abab6.5s-chat', max_tokens:2048, temperature:0.3, messages:[{role:'user',content:prompt}]}),
         signal:ctrl.signal
       });
       clearTimeout(to);
