@@ -1,0 +1,9 @@
+{
+  "name": "kangqiao-parent-navigator",
+  "version": "1.0.0",
+  "private": true,
+  "description": "康桥家长版 AI 升学竞争力诊断 Demo（单文件零依赖，GitHub Pages 部署）",
+  "scripts": {
+    "test": "node test/harness.js"
+  }
+}
