@@ -74,6 +74,8 @@
   ul.diag li{margin:6px 0}
   ol.timeline{margin:6px 0; padding-left:20px}
   ol.timeline li{margin:8px 0}
+  ol.timeline li.timeline-app{background:#fff7ed; border:1px solid #fed7aa; border-radius:10px; padding:8px 10px; list-style:none; margin-left:-20px}
+  ol.timeline li.timeline-app b{color:#c2410c}
   blockquote{margin:8px 0; padding:10px 12px; background:#f8f9fc; border-left:3px solid var(--line); border-radius:8px; font-size:13px; white-space:pre-wrap}
   .swot2{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:4px}
   .swot-col{border-radius:12px; padding:12px 14px}
@@ -770,14 +772,19 @@
   function roadmap(p){
     var g = parseInt(p.grade||'7',10);
     var ag = parseInt(p.applyGrade||'12',10);
-    if(ag < g+1) ag = g+1;
-    var mid = Math.max(g, ag-1);
+    if(!(ag > g)) ag = g + 1; // 申请年须晚于当前年级；申请目标年级未填时默认 G12
     var dirTxt = (p.direction||[]).join(' / ') || '目标院校';
-    return '<ol class="timeline">'+
-      '<li><b>G'+g+'（当前）</b>：巩固 IB MYP 各科 7 分档；补全 Service as Action；启动英语标化（TOEFL Junior → TOEFL）。</li>'+
-      '<li><b>G'+mid+'</b>：确定 DP 选课方向（Math AA HL / Bio HL 等）；高阶竞赛获奖；语言中心强化写作与标化。</li>'+
-      '<li><b>G'+ag+'（申请年）</b>：DP 冲刺；提交 <b>'+escapeHtml(dirTxt)+'</b> 申请，同步准备欧陆 / 多国联申备选。</li>'+
-      '</ol>';
+    var nodes = [];
+    nodes.push({cls:'cur', label:'G'+g+'（当前 · 录入年级）', html:'巩固 IB MYP 各科 7 分档；补全 Service as Action（IB 硬性 7/7）；启动英语标化（TOEFL Junior → TOEFL / IELTS）。'});
+    if(ag-1 > g){
+      var mid = g + Math.ceil((ag - g)/2);
+      if(mid > ag-1) mid = ag-1;
+      if(mid > g) nodes.push({cls:'mid', label:'G'+mid+'（DP 准备）', html:'确定 DP 选课方向（Math AA HL / Bio HL 等）；高阶竞赛获奖；语言中心强化写作与标化；按 Holland 代码 / 兴趣地图深化社团领导力与项目深度。'});
+    }
+    nodes.push({cls:'app', label:'G'+ag+'（申请年 · 申请目标年级）', html:'DP 冲刺；提交 <b>'+escapeHtml(dirTxt)+'</b> 申请（G'+ag+' 申请），同步准备欧陆 / 多国联申备选。'});
+    return '<ol class="timeline">'+nodes.map(function(n){
+      return '<li'+(n.cls==='app'?' class="timeline-app"':'')+'><b>'+n.label+'</b>：'+n.html+'</li>';
+    }).join('')+'</ol>';
   }
 
   function uniq(arr){ var seen={}, out=[]; arr.forEach(function(x){ if(!seen[x]){seen[x]=1; out.push(x);} }); return out; }
@@ -923,6 +930,7 @@
     return {
       name:p.name, grade:p.grade, nationality:p.nationality,
       direction:p.direction, major:p.major, applyGrade:p.applyGrade,
+      yearsToApply:(p.applyGrade!=null && p.applyGrade!=='') ? (parseInt(p.applyGrade,10) - (p.grade?parseInt(p.grade,10):7)) : null,
       avgIB:ibDiag(p).avg, subjects:sp, saCount:p.saCount,
       mbti:p.mbti, holland:(p.holland||'').split(',').filter(Boolean), interestMap:p.interestMap,
       englishTest:{toeflJunior:p.toeflJunior, toefl:p.toefl, ielts:p.ielts, sat:p.sat},
@@ -957,7 +965,10 @@
     if(Array.isArray(c.risks) && c.risks.length){
       h += '<div class="ai-blk"><div class="ai-k">核心风险</div><ul class="risk">'+c.risks.map(function(x){return '<li>'+escapeHtml(x)+'</li>';}).join('')+'</ul></div>';
     }
-    if(c.nextWindow) h += '<div class="ai-blk"><div class="ai-k">本学期最该动的一件事</div><div class="ai-next">'+escapeHtml(c.nextWindow)+'</div></div>';
+    if(c.nextWindow){
+      var nw = (c.nextWindow||'').replace(/^本学期最该动的一件事[：:\s]*/,'').replace(/^[（(]结合紧急性[^)）]*[)）]\s*/,'').replace(/^（一句话[^)）]*）\s*/,'').trim();
+      if(nw) h += '<div class="ai-blk"><div class="ai-k">本学期最该动的一件事</div><div class="ai-next">'+escapeHtml(nw)+'</div></div>';
+    }
     h += '</div>';
     return h;
   }
@@ -979,7 +990,7 @@
         '    "positioning": "一句话定位：学术档位（IB MYP 各科平均 X/7，属顶尖/优秀/良好）+ 申请通道（如德籍属 Non-JUPAS 国际生池）",\n'+
         '    "edge": ["差异化竞争力 1（须关联档案具体字段）", "差异化竞争力 2"],\n'+
         '    "risks": ["核心风险 1（注明硬门槛依据，如某方向要求 TOEFL/IELTS）", "核心风险 2（如 Service as Action 仅 X/7，未达 IB 毕业硬性 7/7）"],\n'+
-        '    "nextWindow": "本学期最该动的一件事（结合紧急性，指向白名单中的具体校内项目）"\n'+
+        '    "nextWindow": "（一句话：本学期最该优先启动的具体动作，须指向白名单内康桥校内项目；不要重复字段名或指令文字，直接写动作）"\n'+
         '  },\n'+
         '  "actions": [ {"title":"行动标题","reason":"基于该生档案某个具体字段的触发原因","scope":"校内 或 校外","importance":"高/中/低（对升学竞争力的重要性）","urgency":"高/中/低（是否临近截止/资格门槛）"} ]\n}\n'+
         '// 要求：\n'+
@@ -989,7 +1000,8 @@
         '//    - 标「校外」的：托福/雅思集训、暑期科研、国际竞赛报名等需校外补充的。\n'+
         '// 3) 每条 action 须关联档案真实字段，reason 写清触发依据；性格与兴趣地图须转化为具体行动（按 Holland 代码选社团、按兴趣地图深化项目）。\n'+
         '// 4) 若档案 swot 字段为 null（未录入老师评语），conclusion 中须注明“老师评语未录入，以下基于学科分数与档案其他字段推断”，并优先用分数弱项生成校内课程补救行动。\n'+
-        '// 5) 每条 action 必填 importance 与 urgency（取值 高/中/低）。Service as Action 未达标须标 urgency=高、importance=高；学科成绩短板 importance 至少 中。';
+        '// 5) 每条 action 必填 importance 与 urgency（取值 高/中/低）。Service as Action 未达标须标 urgency=高、importance=高；学科成绩短板 importance 至少 中。\n'+
+        '// 6) 时间窗：档案含 yearsToApply（距申请还有 X 年）。urgency 与 nextWindow 必须基于剩余窗口判定——若 yearsToApply 较大（如 ≥4 年），当前紧急项仅限 IB 毕业硬性门槛（Service as Action）与基础标化启动；nextWindow 须是本学期即可启动、指向白名单内康桥校内项目的具体动作，不要写需多年才见效的事；可在 conclusion 中提示“尚有余裕，中长期可布局 XX”。';
       var ctrl=new AbortController();
       var to=setTimeout(function(){ ctrl.abort(); }, 15000);
       var res = await fetch('https://api.minimax.chat/v1/text/chatcompletion_v2', {
