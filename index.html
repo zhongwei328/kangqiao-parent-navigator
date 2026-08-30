@@ -234,7 +234,7 @@
         </select>
       </div>
       <div><label style="margin:0 0 4px">申请目标年级</label><input id="applyGrade" type="number" min="1" max="12" placeholder="如 12（G12 申请）" />
-        <p class="hint" style="margin-top:4px">即“计划申请大学的年级”。例如打算高三（G12）申请就填 12。它决定下方「年度路线图」的终点，以及“距申请还剩几年”的倒计时——请按真实规划填写，不确定可先填 12。</p></div>
+        <p class="hint" style="margin-top:4px; font-size:11px; line-height:1.5; color:var(--muted)">即“计划申请大学的年级”。例如打算高三（G12）申请就填 12。它决定下方「年度路线图」的终点，以及“距申请还剩几年”的倒计时——请按真实规划填写，不确定可先填 12。</p></div>
     </div>
 
     <label style="margin-top:10px">比赛奖项</label>
@@ -266,7 +266,7 @@
 
       <div class="sec"><h3>① 竞争力总览与结论</h3><div id="rConclusion"></div></div>
       <div class="sec"><h3>② IB 学科诊断</h3><div id="rDiag"></div></div>
-      <div class="sec"><h3>③ 优势与待改进点（综合学科分数 + 老师评语）</h3><div id="rSwot"></div></div>
+      <div class="sec"><h3>③ 优势与待改进点（以老师评语为主 · 学科分数补充）</h3><div id="rSwot"></div></div>
       <div class="sec" id="secExtracurricular" style="display:none"><h3>🏆 竞赛与活动档案（来自录入）</h3><div id="rExtracurricular"></div></div>
       <div class="sec"><h3>④ 长期升学方向（目标驱动）</h3><div id="rDirection"></div></div>
       <div class="sec"><h3>⑤ 行动清单（校内资源优先）</h3><div id="rActions"></div></div>
@@ -918,39 +918,45 @@
     return { strengths: st, improve: im };
   }
   function swot(p){
-    // 始终基于学科分数推断——保证“优势与待改进点”随档案录入动态变化（成绩改了这里就改）
-    var str=[], imp=[];
+    // 学科分数推断（始终计算，作为"补充/兜底"；成绩改了这里就变 → 动态）
+    var strScore=[], impScore=[];
     SUBJ.forEach(function(sub){
       var subj=p.subjects[sub.key];
       if(subj.score==null && !subj.a && !subj.b && !subj.c && !subj.d) return;
       var weak = critList(subj).filter(function(c){return c.n<=6;});
       if(subj.score!=null && subj.score>=7 && weak.length===0){
-        str.push(sub.name+'课 成绩稳健（Final '+subj.score+'/7，四标准全 ≥7）');
+        strScore.push(sub.name+'课 成绩稳健（Final '+subj.score+'/7，四标准全 ≥7）');
       }
-      if(subj.score!=null && subj.score<=6) imp.push(sub.name+'课 Final '+subj.score+'/7 低于 7 分档');
-      weak.forEach(function(c){ imp.push(sub.name+'课 '+c.L+'（'+critName(sub.key,c.L)+'）'+c.n+'/8 偏弱'); });
+      if(subj.score!=null && subj.score<=6) impScore.push(sub.name+'课 Final '+subj.score+'/7 低于 7 分档');
+      weak.forEach(function(c){ impScore.push(sub.name+'课 '+c.L+'（'+critName(sub.key,c.L)+'）'+c.n+'/8 偏弱'); });
     });
     // Service as Action：IB 硬性毕业 / 升学资格门槛，未达标即进待改进
     var saRaw = (p.saCount===''||p.saCount==null) ? null : parseInt(p.saCount,10);
-    if(saRaw!=null && saRaw<7) imp.push('Service as Action 仅完成 '+saRaw+'/7，IB 硬性要求须补齐（影响 DP 升学资格评估）');
-    // 老师评语文本挖掘（若录入）：叠加到分数推断之上，去重并避免“既夸又批”
+    if(saRaw!=null && saRaw<7) impScore.push('Service as Action 仅完成 '+saRaw+'/7，IB 硬性要求须补齐（影响 DP 升学资格评估）');
+
     var s = summarizeComments(p);
-    var note;
+    var note, str, imp;
     if(s){
-      s.strengths.forEach(function(x){ if(str.indexOf(x)<0) str.push(x); });
-      var sRoots = str.map(rootOf);
-      s.improve.forEach(function(x){ if(str.indexOf(x)<0 && sRoots.indexOf(rootOf(x))<0) imp.push(x); });
-      note = '<p class="muted">综合学科分数与老师评语生成；科目标准名参照 IB 各科官方 rubric（A/B/C/D）。</p>';
+      // 老师评语为主，学科分数为补充：先放评语结论，再补分数发现的弱项/优点（去重 + 避免"既夸又批"）
+      var sRoots = s.strengths.map(rootOf);
+      str = s.strengths.slice();
+      strScore.forEach(function(x){ if(str.indexOf(x)<0) str.push(x); });
+      imp = s.improve.slice();
+      imp = imp.filter(function(x){ return sRoots.indexOf(rootOf(x))<0; }); // 剔除与评语优点同根的分数待改进
+      impScore.forEach(function(x){ if(imp.indexOf(x)<0 && sRoots.indexOf(rootOf(x))<0) imp.push(x); });
+      note = '<p class="muted">✅ 已结合老师评语（优点与待改进主要来自评语），并补充学科分数发现的弱项；科目标准名参照 IB 各科官方 rubric（A/B/C/D）。</p>';
     } else {
-      note = '<p class="muted">未录入老师评语，以下基于学科分数推断（建议补填评语以获得老师视角的优点与改进点）。</p>';
+      // 未录入评语：仅基于学科分数推断
+      str = strScore; imp = impScore;
+      note = '<p class="muted">未录入老师评语，以下基于学科分数推断（建议补填评语可获得老师视角的优点与改进点）。</p>';
     }
     if(!str.length && !imp.length) return note+'<p class="muted">暂无可分析的学科数据，请先录入成绩。</p>';
     var h = note + '<div class="swot2">';
     h += '<div class="swot-col ok"><div class="swot-h">🌟 主要优点</div><ul class="diag">';
-    h += str.length ? str.slice(0,4).map(function(x){return '<li>'+escapeHtml(x)+'</li>';}).join('') : '<li class="muted">暂无显著高分项</li>';
+    h += str.length ? str.slice(0,5).map(function(x){return '<li>'+escapeHtml(x)+'</li>';}).join('') : '<li class="muted">暂无显著高分项</li>';
     h += '</ul></div>';
     h += '<div class="swot-col warn"><div class="swot-h">🔧 主要待改进点</div><ul class="diag">';
-    h += imp.length ? imp.slice(0,5).map(function(x){return '<li>'+escapeHtml(x)+'</li>';}).join('') : '<li class="muted">分数无弱项</li>';
+    h += imp.length ? imp.slice(0,6).map(function(x){return '<li>'+escapeHtml(x)+'</li>';}).join('') : '<li class="muted">分数无弱项</li>';
     h += '</ul></div>';
     h += '</div>';
     return h;
