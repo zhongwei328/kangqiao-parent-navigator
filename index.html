@@ -1022,7 +1022,7 @@
         '// 6) 时间窗：档案含 yearsToApply（距申请还有 X 年）。urgency 与 nextWindow 必须基于剩余窗口判定——若 yearsToApply 较大（如 ≥4 年），当前紧急项仅限 IB 毕业硬性门槛（Service as Action）与基础标化启动；nextWindow 须是本学期即可启动、指向白名单内康桥校内项目的具体动作，不要写需多年才见效的事；可在 conclusion 中提示“尚有余裕，中长期可布局 XX”。\n'+
         '// 7) 竞争基准量化：prompt 内含【竞争基准】。conclusion 须用均分水位量化“该生距目标校（如 40+ 高分段，康桥近三届约 18%-23%）还差多少”，而非泛泛“竞争力优秀”；若 MYP Final 均分已达 ≥6.5/7 可点明“已具 DP 40+ 潜力、须保持并冲 HL 7”，否则给出把 Final 提到 7 的学术路径；risks 须给出缩小差距的具体学术动作。';
       var ctrl=new AbortController();
-      var to=setTimeout(function(){ ctrl.abort(); }, 15000);
+      var to=setTimeout(function(){ ctrl.abort(); }, 30000);
       var res = await fetch('https://api.minimax.chat/v1/text/chatcompletion_v2', {
         method:'POST',
         headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
@@ -1047,7 +1047,10 @@
       if(parsed) return parsed;
       return { error:'返回内容非有效 JSON（可能模型截断或格式异常）：'+(text||'').slice(0,200) };
     }catch(e){
-      var msg = (e && e.name==='AbortError') ? '请求超时（15s）' : ((e&&e.message)||String(e));
+      if(e && e.name==='AbortError'){
+        return { error:'请求超时（30s）：浏览器到 api.minimax.chat 在 30s 内未返回结果。这并非 Key 无效/过期（Key 错误会立即返回错误码），而是网络到该域名不可达或较慢所致，常见原因：① 当前网络无法直连 api.minimax.chat（如境外网络、公司/校园网防火墙拦截、代理异常）；② 本地网络波动。排查：先用浏览器直接打开 https://api.minimax.chat 看能否连通；关闭可能拦截请求的代理或防护类浏览器扩展后重试；或换网络（如手机热点）重试；也可改用已验证可连通的 WorkBuddy 预览版。' };
+      }
+      var msg = (e&&e.message)||String(e);
       return { error: msg };
     }
   }
