@@ -129,7 +129,7 @@
     .card{border:none; box-shadow:none; padding:0}
     #report{display:block}
     .sec{break-inside:avoid}
-    #secPractice iframe{display:none !important}
+    #secPractice{display:none !important}
   }
   .ai-err{margin-top:10px; padding:10px 12px; border:1px solid #f0b4b4; background:#fff5f5; border-radius:10px; color:#9b2c2c; font-size:13px; line-height:1.6}
   .ai-err b{color:#7a1f1f}
@@ -880,6 +880,21 @@
   }
   function actionsItems(p){
     var items=[];
+    // 辅助：判断标化成绩是否已足够高（若已达标，相关学科优先级降低）
+    function stdGood(subjKey){
+      if(subjKey === 'english'){
+        // 英语：TOEFL >= 100 或 IELTS >= 7 或 TOEFL Junior >= 850 视为"足够"
+        var toefl = parseInt(p.toefl,10)||0;
+        var ielts = parseFloat(p.ielts)||0;
+        var tj = parseInt(p.toeflJunior,10)||0;
+        return toefl >= 100 || ielts >= 7.0 || tj >= 850;
+      }
+      if(subjKey === 'chinese'){
+        // 中文：HSK 6级或SAT中文>=800视为足够（如果有的话）
+        return false; // 暂未录入中文标化字段
+      }
+      return false;
+    }
     function add(title, reason, meta){
       meta = meta||{};
       items.push({
@@ -890,11 +905,14 @@
       });
     }
     // 1) 学科弱项（基于录入的四标准 / Final）→ 具体校内课程 + 标准 + 优先级 + 信息来源/链接
+    //    但若该科标化成绩已足够高（如英语托福>=100），优先级降低
     SUBJ.forEach(function(s){
       var subj=p.subjects[s.key];
       if(subj.score==null && !subj.a && !subj.b && !subj.c && !subj.d) return;
       var weak = critList(subj).filter(function(c){return c.n<=6;});
       if(!(subj.score!=null && subj.score<=6) && !weak.length) return;
+      // 标化成绩检查：若已达标，相关学科优先级降低
+      var alreadyGood = stdGood(s.key);
       var focus = weak.length
         ? '重点提升 '+weak.map(function(c){ return c.L+'（'+critName(s.key,c.L)+'）'+c.n+'/8'; }).join('、')
         : '巩固 Final '+subj.score+'/7 档，保持四标准 ≥7';
@@ -903,10 +921,14 @@
       if(weak.length) parts.push('四标准弱项 '+weak.map(function(c){return c.L+c.n;}).join('、'));
       var ev = s.name+' '+(parts.join('；')||'（分数偏低）');
       var isCore = subj.score!=null && subj.score<=6; // Final≤6 = 竞争力核心短板
+      var imp = alreadyGood ? '低' : (isCore ? '高' : '中');
+      var reason = alreadyGood
+        ? '基于档案录入：'+ev+' —— 虽校内成绩偏弱，但标化成绩已达标（托福/IELTS），补校内课程的紧急性降低，可作为长期巩固而非短期突击。'
+        : '基于档案录入：'+ev+' —— 对应校内课程 '+s.name+'课（'+s.en+'）需针对性补强，建议走康桥校内「'+s.prog+'」。';
       add('校内 · '+s.name+'课（'+s.en+'）— 报名「'+s.prog+'」，'+focus,
-        '基于档案录入：'+ev+' —— 对应校内课程 '+s.name+'课（'+s.en+'）需针对性补强，建议走康桥校内「'+s.prog+'」。',
-        { imp: isCore?'高':'中', urg: isCore?'中':'中', scope:'校内',
-          source:'信息来源：IB MYP 成绩单录入 — '+ev,
+        reason,
+        { imp: imp, urg: alreadyGood?'低':'中', scope:'校内',
+          source:'信息来源：IB MYP 成绩单录入 — '+ev + (alreadyGood ? '；标化成绩已达标' : ''),
           links:[IB_CUR, kqProgLink(s.prog)] });
     });
     // 2) 升学方向联动（标化缺失）
