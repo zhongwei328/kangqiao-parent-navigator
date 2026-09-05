@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
-var html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
-var app = html.match(/\/\/ ===APP_START===([\s\S]*?)\/\/ ===APP_END===/)[1];
+var srcHtml = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+var app = srcHtml.match(/\/\/ ===APP_START===([\s\S]*?)\/\/ ===APP_END===/)[1];
 app = app.replace(/^\s*\(function\(\)\{/, '').replace(/\}\)\(\);\s*$/, '');
 // DOM 桩
 var __els = {};
@@ -181,12 +181,23 @@ global.__t.callMiniMax(p,'fake-key').then(function(ai){
     global.__t.callMiniMax(p,'bad-key').then(function(e){
       console.log('  捕获: '+(e&&e.error||'null'));
       ok('Key 无效(1004) → 错误明确指向 Key 无效/过期', !!(e&&e.error) && /1004/.test(e.error) && /Key 无效或已过期/.test(e.error));
+      runPracticeSuite();
       runExtractionSuite();
       console.log('\n==== 结果: '+pass+' 通过 / '+fail+' 失败 ====');
       process.exit(fail?1:0);
     });
   });
 });
+
+// === 配套练习模块：防止嵌入被误删/URL 被改（步骤②交付物）===
+function runPracticeSuite(){
+  console.log('\n=== 配套练习模块（AMC10 iframe + 托福外链）===');
+  ok('报告卡含 ⑦ 配套练习模块区块', /id="secPractice"/.test(srcHtml));
+  ok('AMC10 以 iframe 内嵌（自包含·无需Key）', /id="amcFrame"[^>]*src="https:\/\/zhongwei328\.github\.io\/Henry-AMC10-Practice\/"/.test(srcHtml));
+  ok('托福写作以新标签外链卡片（自带Key·与诊断Key独立）', /id="toeflLink"[^>]*href="https:\/\/zhongwei328\.github\.io\/toefl-writing-agent\/"/.test(srcHtml) && /target="_blank"/.test(srcHtml));
+  ok('外链带 rel="noopener"（安全）', /id="toeflLink"[^>]*rel="noopener"/.test(srcHtml));
+  ok('打印样式隐藏练习区 iframe（不污染导出PDF）', /#secPractice iframe\{display:none/.test(srcHtml));
+}
 
 // === PDF 提取回归：G6 + G7 跨格式（防止"换报告评语/分数丢失"回归）===
 function runExtractionSuite(){
