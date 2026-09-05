@@ -182,7 +182,7 @@
         <button class="btn ghost sm" id="importProfileBtn" type="button">📥 导入 JSON</button>
         <input id="importProfileInput" type="file" accept=".json" style="display:none" />
       </div>
-      <div id="archiveList" class="archive-list" style="font-size:13px"></div>
+      <div id="archiveList" class="archive-list" style="font-size:13px; min-height:24px; padding:4px 0"></div>
     </div>
 
     <div class="grid2">
@@ -911,8 +911,9 @@
       if(subj.score==null && !subj.a && !subj.b && !subj.c && !subj.d) return;
       var weak = critList(subj).filter(function(c){return c.n<=6;});
       if(!(subj.score!=null && subj.score<=6) && !weak.length) return;
-      // 标化成绩检查：若已达标，相关学科优先级降低
+      // 标化成绩检查：若已达标，完全跳过该学科的行动项（不需要推荐校内课程）
       var alreadyGood = stdGood(s.key);
+      if(alreadyGood) return;
       var focus = weak.length
         ? '重点提升 '+weak.map(function(c){ return c.L+'（'+critName(s.key,c.L)+'）'+c.n+'/8'; }).join('、')
         : '巩固 Final '+subj.score+'/7 档，保持四标准 ≥7';
@@ -921,14 +922,10 @@
       if(weak.length) parts.push('四标准弱项 '+weak.map(function(c){return c.L+c.n;}).join('、'));
       var ev = s.name+' '+(parts.join('；')||'（分数偏低）');
       var isCore = subj.score!=null && subj.score<=6; // Final≤6 = 竞争力核心短板
-      var imp = alreadyGood ? '低' : (isCore ? '高' : '中');
-      var reason = alreadyGood
-        ? '基于档案录入：'+ev+' —— 虽校内成绩偏弱，但标化成绩已达标（托福/IELTS），补校内课程的紧急性降低，可作为长期巩固而非短期突击。'
-        : '基于档案录入：'+ev+' —— 对应校内课程 '+s.name+'课（'+s.en+'）需针对性补强，建议走康桥校内「'+s.prog+'」。';
       add('校内 · '+s.name+'课（'+s.en+'）— 报名「'+s.prog+'」，'+focus,
-        reason,
-        { imp: imp, urg: alreadyGood?'低':'中', scope:'校内',
-          source:'信息来源：IB MYP 成绩单录入 — '+ev + (alreadyGood ? '；标化成绩已达标' : ''),
+        '基于档案录入：'+ev+' —— 对应校内课程 '+s.name+'课（'+s.en+'）需针对性补强，建议走康桥校内「'+s.prog+'」。',
+        { imp: isCore?'高':'中', urg: '中', scope:'校内',
+          source:'信息来源：IB MYP 成绩单录入 — '+ev,
           links:[IB_CUR, kqProgLink(s.prog)] });
     });
     // 2) 升学方向联动（标化缺失）
