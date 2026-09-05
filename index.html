@@ -1357,9 +1357,25 @@
     document.getElementById('rDirection').innerHTML = '<p>'+direction(p)+'</p>';
 
     // 行动清单：有 Key 且 AI 成功 → 用实时 AI 行动（含校内/校外标签 + 优先级 + 信息来源）；否则本地生成（含比赛/活动关联）
+    // 过滤：标化已达标的学科（如英语托福>=100），AI 动作中相关的校内课程推荐应跳过
+    function filterActions(actions, p){
+      return actions.filter(function(it){
+        var t = (it.title||'').toLowerCase();
+        var r = (it.reason||'').toLowerCase();
+        // 英语相关动作
+        if(t.indexOf('english')>=0 || t.indexOf('英语')>=0 || r.indexOf('english')>=0 || r.indexOf('英语')>=0){
+          var toefl = parseInt(p.toefl,10)||0;
+          var ielts = parseFloat(p.ielts)||0;
+          var tj = parseInt(p.toeflJunior,10)||0;
+          if(toefl >= 100 || ielts >= 7.0 || tj >= 850) return false; // 跳过
+        }
+        return true;
+      });
+    }
     var actionsHtml;
     if(aiOk && ai.actions && ai.actions.length){
-      var norm = ai.actions.map(function(it){
+      var filtered = filterActions(ai.actions, p);
+      var norm = filtered.map(function(it){
         var m = aiMeta(it, p);
         return {
           title:it.title, reason:it.reason||'',
