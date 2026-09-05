@@ -138,11 +138,10 @@
   .pc-tag.toefl{background:#0d9488}
   .pc-title{font-size:14px; font-weight:600; color:var(--ink)}
   .pc-desc{font-size:13px; color:var(--muted); line-height:1.6; margin:0 0 10px}
-  .pc-frame{width:100%; height:520px; border:1px solid var(--line); border-radius:10px; background:#fff}
   .pc-extlink{display:inline-block; margin:4px 0 10px; padding:10px 14px; background:var(--accent); color:#fff; border-radius:10px; text-decoration:none; font-size:14px; font-weight:600; text-align:center}
   .pc-extlink:hover{opacity:.92}
   .pc-note{margin:0; font-size:12px}
-  @media(max-width:640px){ .practice-grid{grid-template-columns:1fr} .pc-frame{height:460px} }
+  @media(max-width:640px){ .practice-grid{grid-template-columns:1fr} }
 </style>
 </head>
 <body>
@@ -289,17 +288,17 @@
 
       <div class="sec" id="secPractice">
         <h3>⑦ 配套练习模块（边诊断边练）</h3>
-        <p class="muted" style="margin:0 0 12px">下面两个工具与诊断结论配套，把"待改进点"直接转化为日常练习。AMC10 内嵌即可用；托福写作需自备 Key，建议新标签打开。</p>
+        <p class="muted" style="margin:0 0 12px">下面两个工具与诊断结论配套，把"待改进点"直接转化为日常练习。建议新标签打开使用。</p>
         <div class="practice-grid">
           <div class="practice-card">
             <div class="pc-head"><span class="pc-tag amc">AMC10 数学</span><span class="pc-title">错题练习 · 真题库</span></div>
-            <p class="pc-desc">内嵌 Henry 的 AMC10 错题本与练习库（KaTeX 离线渲染，无需 Key）。在本界面直接刷题、看解析。</p>
-            <iframe id="amcFrame" class="pc-frame" src="https://zhongwei328.github.io/Henry-AMC10-Practice/" title="AMC10 错题练习" loading="lazy"></iframe>
-            <p class="pc-note muted">内嵌页面版权归原题库与 Henry 练习项目所有。</p>
+            <p class="pc-desc">AMC10 错题本与练习库（KaTeX 离线渲染，无需 Key）。点击链接在新标签打开，可刷题、看解析、记录错题。</p>
+            <a id="amcLink" class="pc-extlink" href="https://zhongwei328.github.io/Henry-AMC10-Practice/" target="_blank" rel="noopener">↗ 在新标签打开 AMC10 练习</a>
+            <p class="pc-note muted">外部工具：版权归原题库与 Henry 练习项目所有。</p>
           </div>
           <div class="practice-card">
             <div class="pc-head"><span class="pc-tag toefl">托福写作</span><span class="pc-title">AI 批改 · 写作 agent</span></div>
-            <p class="pc-desc">托福写作智能批改（调用 MiniMax，需自备 Key，与上方诊断 Key 独立）。建议新标签打开使用。</p>
+            <p class="pc-desc">托福写作智能批改（调用 MiniMax，需自备 Key，与上方诊断 Key 独立）。点击链接在新标签打开。</p>
             <a id="toeflLink" class="pc-extlink" href="https://zhongwei328.github.io/toefl-writing-agent/" target="_blank" rel="noopener">↗ 在新标签打开托福写作练习</a>
             <p class="pc-note muted">外部工具：首次使用需在站内粘贴你的 MiniMax Key（仅存浏览器会话，不上传）。</p>
           </div>

@@ -1,7 +1,7 @@
 # 家长版 Demo — 验收清单（Acceptance Checklist）
 
 > 当前版本验收行为基线。每次加功能前先 `npm test`（= `node test/harness.js`）确保全部通过，再动手。
-> 测试桩 `test/harness.js` 用 DOM 桩 `eval` 真实 `index.html` 应用段，**73 条断言全过**即视为主链路未回归。
+> 测试桩 `test/harness.js` 用 DOM 桩 `eval` 真实 `index.html` 应用段，**78 条断言全过**即视为主链路未回归。
 
 ## 1. 录入与 PDF 辅助填表
 - [x] 「上传学校 PDF 报告」置于录入卡**最顶部**（姓名之前），无 PDF 也可手动填。
@@ -43,3 +43,9 @@
 ## 回归 fixtures
 - `test/fixtures/henry_g6_report.txt`（2025_Grade_6_1_Henry.pdf）
 - `test/fixtures/henry_g7_report.txt`（2026_Grade_7_2_Henry.pdf）
+
+## 8. 配套练习模块（⑦，Step2 交付物）
+- [x] 报告卡内「⑦ 配套练习模块」随诊断结果一起出现（在 `#report` 视图内）。
+- [x] **AMC10 错题练习**以 `<iframe>` 内嵌 `https://zhongwei328.github.io/Henry-AMC10-Practice/`（自包含、KaTeX 离线、无需 Key）。
+- [x] **托福写作练习**以新标签外链卡片 `https://zhongwei328.github.io/toefl-writing-agent/`，`target="_blank" rel="noopener"`；自带 MiniMax Key（与诊断 Key 独立）。
+- [x] 打印/导出 PDF 时隐藏练习区 iframe（`#secPractice iframe{display:none}`），不污染家长版 PDF。
