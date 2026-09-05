@@ -54,6 +54,11 @@
   .btn.sm{width:auto; padding:9px 14px; font-size:13px; margin-top:8px}
   .pdfzone{border:1px solid var(--line); border-radius:12px; padding:12px; background:#fafbff}
   .pdfzone .hint{font-size:12px; color:var(--muted); margin:8px 0 0}
+  .archive-item{display:flex; align-items:center; gap:8px; padding:6px 8px; background:#fff; border-radius:6px; margin-bottom:4px; border:1px solid #e0e8f0}
+  .archive-item .name{flex:1; font-weight:500}
+  .archive-item .date{color:var(--muted); font-size:12px}
+  .archive-item .del{color:#d32f2f; cursor:pointer; padding:2px 6px; border-radius:4px; background:none; border:none}
+  .archive-item .del:hover{background:#ffebee}
   #pdfStatus{margin-top:10px; font-size:13px; padding:9px 12px; border-radius:10px; display:none}
   #pdfStatus.show{display:block}
   #pdfStatus.ok{background:var(--ok-soft); color:var(--ok)}
@@ -166,6 +171,18 @@
         <textarea id="pasteText" placeholder="把 PDF 里的纯文本粘贴到这里" style="margin-top:8px"></textarea>
         <button class="btn ghost sm" id="reparseBtn" type="button">粘贴原文重新识别</button>
       </details>
+    </div>
+
+    <!-- 历史档案管理 -->
+    <div class="archive-zone" style="margin:12px 0; padding:12px; background:#f0f7ff; border-radius:10px; border:1px solid #d0e4ff">
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px">
+        <span style="font-weight:600">📁 历史档案</span>
+        <button class="btn ghost sm" id="saveProfileBtn" type="button" style="margin-left:auto">💾 保存当前档案</button>
+        <button class="btn ghost sm" id="exportProfileBtn" type="button">📤 导出 JSON</button>
+        <button class="btn ghost sm" id="importProfileBtn" type="button">📥 导入 JSON</button>
+        <input id="importProfileInput" type="file" accept=".json" style="display:none" />
+      </div>
+      <div id="archiveList" class="archive-list" style="font-size:13px"></div>
     </div>
 
     <div class="grid2">
@@ -532,6 +549,15 @@
     else setStatus('未能匹配，请检查原文格式或手动填写。', 'warn');
   });
 
+  // 历史档案按钮绑定
+  document.getElementById('saveProfileBtn').onclick = saveCurrentProfile;
+  document.getElementById('exportProfileBtn').onclick = exportProfile;
+  document.getElementById('importProfileBtn').onclick = function(){ document.getElementById('importProfileInput').click(); };
+  document.getElementById('importProfileInput').addEventListener('change', function(e){
+    if(e.target.files[0]) importProfile(e.target.files[0], function(){ e.target.value=''; });
+  });
+  renderArchiveList();
+
   // ---- 读取档案 ----
   function getProfile(){
     var p = {name:v('name'), grade:v('grade'), school:v('school'), nationality:v('nationality'), teacherComment:v('teacherComment'), subjects:{}};
@@ -559,6 +585,130 @@
     p.activities = [];
     document.querySelectorAll('#activityList .row').forEach(function(r){ var n=r.querySelector('.a-name').value.trim(); if(n) p.activities.push({name:n, role:r.querySelector('.a-role').value.trim(), desc:r.querySelector('.a-desc').value.trim()}); });
     return p;
+  }
+
+  // ---- 历史档案管理 ----
+  var ARCHIVE_KEY = 'kangqiao_archives';
+  function getArchives(){
+    try{ return JSON.parse(localStorage.getItem(ARCHIVE_KEY)) || []; }catch(e){ return []; }
+  }
+  function saveArchives(archs){ localStorage.setItem(ARCHIVE_KEY, JSON.stringify(archs)); }
+  function renderArchiveList(){
+    var list = getArchives();
+    var el = document.getElementById('archiveList');
+    if(!list.length){ el.innerHTML = '<span class="muted">暂无存档</span>'; return; }
+    el.innerHTML = list.map(function(a,i){
+      return '<div class="archive-item"><span class="name">'+escapeHtml(a.name||'未命名')+'</span><span class="date">'+a.date+'</span><button class="del" data-i="'+i+'">删除</button></div>';
+    }).join('');
+    el.querySelectorAll('.del').forEach(function(btn){
+      btn.onclick = function(){
+        var idx = +this.dataset.i;
+        if(confirm('确定删除这条存档吗？')){
+          list.splice(idx,1);
+          saveArchives(list);
+          renderArchiveList();
+        }
+      };
+    });
+    el.querySelectorAll('.archive-item').forEach(function(item,idx){
+      item.style.cursor = 'pointer';
+      item.onclick = function(e){ if(e.target.classList.contains('del')) return; loadArchive(idx); };
+    });
+  }
+  function loadArchive(idx){
+    var list = getArchives();
+    var a = list[idx];
+    if(!a) return;
+    setV('name', a.profile.name||'');
+    setV('grade', a.profile.grade||'');
+    setV('school', a.profile.school||'');
+    setV('nationality', a.profile.nationality||'');
+    setV('teacherComment', a.profile.teacherComment||'');
+    setV('mbti', a.profile.mbti||'');
+    setV('holland', a.profile.holland||'');
+    setV('interestMap', a.profile.interestMap||'');
+    setV('toeflJunior', a.profile.toeflJunior||'');
+    setV('toefl', a.profile.toefl||'');
+    setV('ielts', a.profile.ielts||'');
+    setV('sat', a.profile.sat||'');
+    setV('examDate', a.profile.examDate||'');
+    setV('saCount', a.profile.saCount||'');
+    setV('major', a.profile.major||'');
+    setV('applyGrade', a.profile.applyGrade||'');
+    SUBJ.forEach(function(s){
+      var sb = a.profile.subjects && a.profile.subjects[s.key];
+      if(sb){
+        setV('subject_score_'+s.key, sb.score||'');
+        setV('subject_a_'+s.key, sb.a||'');
+        setV('subject_b_'+s.key, sb.b||'');
+        setV('subject_c_'+s.key, sb.c||'');
+        setV('subject_d_'+s.key, sb.d||'');
+      }
+    });
+    setStatus('已加载存档：'+escapeHtml(a.name||'未命名'), 'ok');
+  }
+  function saveCurrentProfile(){
+    var p = getProfile();
+    if(!p.name){ setStatus('请先填写姓名', 'warn'); return; }
+    var list = getArchives();
+    var now = new Date();
+    var dateStr = now.getFullYear()+'-'+(now.getMonth()+1)+'-'+now.getDate()+' '+now.getHours()+':'+(now.getMinutes()<10?'0':'')+now.getMinutes();
+    list.push({name:p.name, date:dateStr, profile:p});
+    saveArchives(list);
+    renderArchiveList();
+    setStatus('已保存存档：'+p.name, 'ok');
+  }
+  function exportProfile(){
+    var p = getProfile();
+    if(!p.name){ setStatus('请先填写姓名', 'warn'); return; }
+    var blob = new Blob([JSON.stringify({name:p.name, profile:p, exported:new Date().toISOString()}, null, 2)], {type:'application/json'});
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'kangqiao_profile_'+(p.name.replace(/\\s+/g,'_'))+'.json';
+    a.click();
+  }
+  function importProfile(file, onDone){
+    var reader = new FileReader();
+    reader.onload = function(e){
+      try{
+        var data = JSON.parse(e.target.result);
+        if(!data.profile){ throw new Error('无效的档案文件'); }
+        loadArchiveData(data.profile);
+        setStatus('已导入存档：'+(data.name||'未命名'), 'ok');
+        if(onDone) onDone();
+      }catch(err){
+        setStatus('导入失败：'+err.message, 'warn');
+      }
+    };
+    reader.readAsText(file);
+  }
+  function loadArchiveData(p){
+    setV('name', p.name||'');
+    setV('grade', p.grade||'');
+    setV('school', p.school||'');
+    setV('nationality', p.nationality||'');
+    setV('teacherComment', p.teacherComment||'');
+    setV('mbti', p.mbti||'');
+    setV('holland', p.holland||'');
+    setV('interestMap', p.interestMap||'');
+    setV('toeflJunior', p.toeflJunior||'');
+    setV('toefl', p.toefl||'');
+    setV('ielts', p.ielts||'');
+    setV('sat', p.sat||'');
+    setV('examDate', p.examDate||'');
+    setV('saCount', p.saCount||'');
+    setV('major', p.major||'');
+    setV('applyGrade', p.applyGrade||'');
+    SUBJ.forEach(function(s){
+      var sb = p.subjects && p.subjects[s.key];
+      if(sb){
+        setV('subject_score_'+s.key, sb.score||'');
+        setV('subject_a_'+s.key, sb.a||'');
+        setV('subject_b_'+s.key, sb.b||'');
+        setV('subject_c_'+s.key, sb.c||'');
+        setV('subject_d_'+s.key, sb.d||'');
+      }
+    });
   }
 
   function critList(subj){
