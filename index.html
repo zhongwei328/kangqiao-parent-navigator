@@ -1009,12 +1009,12 @@
       if(subj.score==null && !subj.a && !subj.b && !subj.c && !subj.d) return;
       // 跳过没有弱项的科目（Final > 6 且所有标准 > 6）
       var weak = critList(subj).filter(function(c){return c.n<=6;});
-      if(!(subj.score!=null && subj.score<=5) && weak.length === 0) return;
+      if(!(subj.score!=null && subj.score<=6) && weak.length === 0) return;
       // 标化成绩检查：若已达标，完全跳过该学科的行动项（不需要推荐校内课程）
       var alreadyGood = stdGood(s.key);
       if(alreadyGood) return;
       // 计算弱项数量
-      var weakCount = (subj.score!=null && subj.score<=5) ? 1 : 0;
+      var weakCount = (subj.score!=null && subj.score<=6) ? 1 : 0;
       weakCount += weak.length;
       subjWithWeakness.push({s:s, subj:subj, weak:weak, weakCount:weakCount});
     });
@@ -1027,10 +1027,10 @@
         ? '重点提升 '+weak.map(function(c){ return c.L+'（'+critName(s.key,c.L)+'）'+c.n+'/8'; }).join('、')
         : '巩固 Final '+subj.score+'/7 档，保持四标准 ≥7';
       var parts=[];
-      if(subj.score!=null && subj.score<=5) parts.push('Final '+subj.score+'/7（低于 7 分档）');
+      if(subj.score!=null && subj.score<=6) parts.push('Final '+subj.score+'/7（低于 7 分档）');
       if(weak.length) parts.push('四标准弱项 '+weak.map(function(c){return c.L+c.n;}).join('、'));
       var ev = s.name+' '+(parts.join('；')||'（分数偏低）');
-      var isCore = subj.score!=null && subj.score<=5;
+      var isCore = subj.score!=null && subj.score<=6;
       add('校内 · '+s.name+'课（'+s.en+'）— 报名「'+s.prog+'」，'+focus,
         '基于档案录入：'+ev+' —— 对应校内课程 '+s.name+'课（'+s.en+'）需针对性补强，建议走康桥校内「'+s.prog+'」。',
         { imp: isCore?'高':'中', urg: '中', scope:'校内',
@@ -1305,7 +1305,7 @@
       var subj=p.subjects[sub.key];
       if(subj.score==null && !subj.a && !subj.b && !subj.c && !subj.d) return;
       var weak = critList(subj).filter(function(c){return c.n<=6;});
-      var weakCount = (subj.score!=null && subj.score<=5) ? 1 : 0;
+      var weakCount = (subj.score!=null && subj.score<=6) ? 1 : 0;
       weakCount += weak.length;
       var isStrong = subj.score!=null && subj.score>=7 && weak.length===0;
       subjData.push({sub:sub, subj:subj, weak:weak, weakCount:weakCount, isStrong:isStrong});
@@ -1318,7 +1318,7 @@
       if(d.isStrong){
         strScore.push(sub.name+'课 成绩稳健（Final '+subj.score+'/7，四标准全 ≥7）');
       }
-      if(subj.score!=null && subj.score<=5) impScore.push(sub.name+'课 Final '+subj.score+'/7 低于 7 分档');
+      if(subj.score!=null && subj.score<=6) impScore.push(sub.name+'课 Final '+subj.score+'/7 低于 7 分档');
       weak.forEach(function(c){ impScore.push(sub.name+'课 '+c.L+'（'+critName(sub.key,c.L)+'）'+c.n+'/8 偏弱'); });
     });
     // Service as Action：IB 硬性毕业 / 升学资格门槛，未达标即进待改进
