@@ -1000,23 +1000,27 @@
       });
     }
     // 1) 学科弱项（基于录入的四标准 / Final）→ 具体校内课程 + 标准 + 优先级 + 信息来源/链接
-    //    按弱项程度排序（弱项最多的排前面），但全部保留
+    //    按弱项程度排序（弱项最多的排前面），全部保留
+    //    但若标化已达标（如英语托福>=100），跳过校内课程推荐
     var subjWithWeakness = [];
     SUBJ.forEach(function(s){
-      var subj=p.subjects[s.key];
+      var subj = p.subjects[s.key];
+      // 跳过没有分数的科目
       if(subj.score==null && !subj.a && !subj.b && !subj.c && !subj.d) return;
+      // 跳过没有弱项的科目（Final > 6 且所有标准 > 6）
       var weak = critList(subj).filter(function(c){return c.n<=6;});
-      if(!(subj.score!=null && subj.score<=6) && !weak.length) return;
+      if(!(subj.score!=null && subj.score<=6) && weak.length === 0) return;
       // 标化成绩检查：若已达标，完全跳过该学科的行动项（不需要推荐校内课程）
       var alreadyGood = stdGood(s.key);
       if(alreadyGood) return;
-      // 计算弱项数量：Final≤6 算1个弱项，每个 A/B/C/D≤6 算1个
+      // 计算弱项数量
       var weakCount = (subj.score!=null && subj.score<=6) ? 1 : 0;
       weakCount += weak.length;
       subjWithWeakness.push({s:s, subj:subj, weak:weak, weakCount:weakCount});
     });
-    // 按弱项数量降序排序
+    // 按弱项数量降序排序（弱项多的排前面）
     subjWithWeakness.sort(function(a,b){ return b.weakCount - a.weakCount; });
+    // 全部添加，不限制数量
     subjWithWeakness.forEach(function(item){
       var s = item.s, subj = item.subj, weak = item.weak;
       var focus = weak.length
