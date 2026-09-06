@@ -132,6 +132,7 @@
     #secPractice{display:none !important}
   }
   .ai-err{margin-top:10px; padding:10px 12px; border:1px solid #f0b4b4; background:#fff5f5; border-radius:10px; color:#9b2c2c; font-size:13px; line-height:1.6}
+  .direction-fit{border-left:4px solid #3b82f6}
   .ai-err b{color:#7a1f1f}
   .ai-err .muted{color:#a35; font-size:12px}
   /* 配套练习模块 */
@@ -691,6 +692,12 @@
     setV('mbti', p.mbti||'');
     setV('holland', p.holland||'');
     setV('interestMap', p.interestMap||'');
+    // 恢复升学方向 chips
+    document.querySelectorAll('#directionChips input').forEach(function(cb){ cb.checked = (p.direction||[]).indexOf(cb.value)>=0; });
+    // 自定义方向
+    var dirs = p.direction||[];
+    var customs = dirs.filter(function(d){ return !/^港三|美Top|英G5|加|澳|欧陆|新加坡|其他/.test(d); });
+    setV('directionCustom', customs.join(', '));
     setV('toeflJunior', p.toeflJunior||'');
     setV('toefl', p.toefl||'');
     setV('ielts', p.ielts||'');
@@ -809,6 +816,75 @@
     return t;
   }
 
+  // 升学方向达标分析
+  function directionFit(p){
+    var dirs = (p.direction||[]).filter(Boolean);
+    if(!dirs.length) return null;
+    // 收集成绩指标
+    var scores = [];
+    var subj = p.subjects || {};
+    ['math','english','chinese','science','humanities'].forEach(function(k){
+      if(subj[k] && subj[k].score) scores.push(subj[k].score);
+    });
+    var avgScore = scores.length ? (scores.reduce(function(a,b){return a+b;},0)/scores.length) : 0;
+    var hasEnglishStd = (parseInt(p.toefl,10)>=100) || (parseFloat(p.ielts)>=7.0) || (parseInt(p.toeflJunior,10)>=850);
+    var hasCompetition = (p.competitions||[]).length > 0;
+    var hasSA = parseInt(p.saCount,10) >= 7;
+    // 方向匹配度判断
+    var results = [];
+    dirs.forEach(function(d){
+      var fit = { level:'待评估', color:'#666', msg:'' };
+      if(d.indexOf('港三')>=0){
+        // 港三：看 IB 均分 + 竞赛 + 英语标化
+        if(avgScore >= 7 && hasEnglishStd && hasCompetition){
+          fit = { level:'超出预期', color:'#16a34a', msg:'IB 均分 '+(avgScore).toFixed(1)+' + 英语标化已达标 + 有竞赛经历，竞争力强' };
+        }else if(avgScore >= 6 && hasEnglishStd){
+          fit = { level:'符合预期', color:'#2563eb', msg:'IB 均分 '+(avgScore).toFixed(1)+' + 英语标化已达标，基本匹配' };
+        }else{
+          fit = { level:'低于目标', color:'#dc2626', msg:'IB 均分 '+(avgScore).toFixed(1)+' 或英语标化或竞赛经历需加强' };
+        }
+      }else if(d.indexOf('美Top30')>=0){
+        // 美本：看 IB + SAT + 竞赛 + 活动
+        var hasSAT = parseInt(p.sat,10)>=1450;
+        if(avgScore >= 7 && hasSAT && hasCompetition){
+          fit = { level:'超出预期', color:'#16a34a', msg:'IB 均分 '+(avgScore).toFixed(1)+' + SAT '+(p.sat||'--')+' + 竞赛/活动，具备竞争力' };
+        }else if(avgScore >= 6 && hasEnglishStd){
+          fit = { level:'符合预期', color:'#2563eb', msg:'IB 均分 '+(avgScore).toFixed(1)+' + 英语标化基本达标，需补充 SAT/竞赛' };
+        }else{
+          fit = { level:'低于目标', color:'#dc2626', msg:'IB 均分 '+(avgScore).toFixed(1)+' + 标化/SAT 需加强' };
+        }
+      }else if(d.indexOf('牛剑')>=0){
+        // 牛剑：看 IB 均分 + 学科竞赛
+        if(avgScore >= 7 && hasCompetition){
+          fit = { level:'超出预期', color:'#16a34a', msg:'IB 均分 '+(avgScore).toFixed(1)+' + 有竞赛，学术深度足够' };
+        }else if(avgScore >= 6.5){
+          fit = { level:'符合预期', color:'#2563eb', msg:'IB 均分 '+(avgScore).toFixed(1)+'，建议补充学科竞赛' };
+        }else{
+          fit = { level:'低于目标', color:'#dc2626', msg:'IB 均分 '+(avgScore).toFixed(1)+' 需提升至 7 分档' };
+        }
+      }else if(d.indexOf('欧陆')>=0 || d.indexOf('德国')>=0){
+        // 欧陆：看 IB + 德语/英语
+        var hasGerman = /德语|german|DSH/i.test(p.interestMap||'');
+        if(avgScore >= 6 && hasEnglishStd){
+          fit = { level:'符合预期', color:'#2563eb', msg:'IB 均分 '+(avgScore).toFixed(1)+' + 英语标化，欧陆申请有竞争力' };
+        }else{
+          fit = { level:'低于目标', color:'#dc2626', msg:'IB 均分或英语标化需加强' };
+        }
+      }else{
+        // 其他方向默认评估
+        if(avgScore >= 6.5 && hasEnglishStd){
+          fit = { level:'符合预期', color:'#2563eb', msg:'IB 均分 '+(avgScore).toFixed(1)+' + 英语标化基本达标' };
+        }else if(avgScore >= 6){
+          fit = { level:'符合预期', color:'#2563eb', msg:'IB 均分 '+(avgScore).toFixed(1)+'，建议提升标化' };
+        }else{
+          fit = { level:'低于目标', color:'#dc2626', msg:'IB 均分 '+(avgScore).toFixed(1)+' 需加强' };
+        }
+      }
+      results.push({dir:d, fit:fit});
+    });
+    return results;
+  }
+
   function direction(p){
     var dirs = (p.direction||[]).filter(Boolean);
     if(!dirs.length) return '尚未在档案中填写 <b>升学方向</b>。请回到录入端选择目标（港三 / 牛剑 / 美 Top30 / 欧陆 / 联申等），报告将据此定制路径与时间表。';
@@ -823,6 +899,17 @@
       '多国联申':'多国联申需统一时间轴，优先做保底与冲刺分层'
     };
     var t = '升学方向：<b>'+dirs.map(escapeHtml).join('、')+'</b>。';
+    // 达标结论
+    var fitResult = directionFit(p);
+    if(fitResult && fitResult.length){
+      t += '<div class="direction-fit" style="margin:12px 0; padding:12px; border-radius:10px; background:#f8fafc; border:1px solid #e2e8f0">';
+      t += '<div style="font-weight:600; margin-bottom:8px">📊 目标达成评估</div>';
+      fitResult.forEach(function(r){
+        t += '<div style="display:flex; align-items:center; gap:8px; margin:6px 0"><span style="color:'+r.fit.color+'; font-weight:600">'+r.fit.level+'</span><span>：'+escapeHtml(r.dir)+'</span></div>';
+        t += '<div style="font-size:13px; color:#666; margin-left:4px">'+r.fit.msg+'</div>';
+      });
+      t += '</div>';
+    }
     t += '<ul class="diag">';
     dirs.forEach(function(d){ if(map[d]) t += '<li>'+map[d]+'。</li>'; });
     t += '</ul>';
