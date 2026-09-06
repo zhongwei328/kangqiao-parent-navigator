@@ -194,8 +194,8 @@
       <div><label>学校</label><input id="school" placeholder="如 Kang Chiao International School" /></div>
       <div><label>国籍</label><input id="nationality" list="natList" placeholder="如 德国 / German" />
         <datalist id="natList">
-          <option value="中国"></option><option value="德国 / German"></option><option value="美国 / US"></option>
-          <option value="英国 / UK"></option><option value="新加坡"></option><option value="加拿大"></option>
+          <option value="中国内地"></option><option value="中国香港 / Hong Kong"></option><option value="中国台湾 / Taiwan"></option><option value="德国 / German"></option>
+          <option value="美国 / US"></option><option value="英国 / UK"></option><option value="新加坡"></option><option value="加拿大"></option>
           <option value="澳大利亚"></option><option value="其他"></option>
         </datalist>
       </div>
@@ -1123,17 +1123,57 @@
     if(isNaN(g)||g<1||g>12) g = 7;
     var ag = parseInt(p.applyGrade,10); // 可能为 NaN（未录入）
     var applyInRange = !isNaN(ag) && ag>=g && ag<=12;
-    var dirAnchor = (p.direction&&p.direction.length)?p.direction.join('、'):'目标院校';
-    var end = 12; if(g>end) end = g; // 路线始终列到 G12（毕业 / 申请提交年）
+    var dirs = p.direction||[];
+    var dirStr = dirs.length ? dirs.join('、') : '目标院校';
+    // 分析主要方向以定制路线
+    var hasHK = /港三|香港/.test(dirStr);
+    var hasUK = /牛剑|UK|英国/.test(dirStr);
+    var hasUS = /美Top|美国/.test(dirStr);
+    var hasEU = /欧陆|德国/.test(dirStr);
+    var end = 12; if(g>end) end = g;
+    // 定制化阶段文本
     function phaseText(y){
-      if(y<=9){ // MYP 阶段
+      // === 港三方向定制 ===
+      if(hasHK){
+        if(y<=9) return '巩固 IB MYP 各科 Final 7 分档；补全 Service as Action（7/7）；启动英语标化（TOEFL Junior → TOEFL 100+）。';
+        if(y===9) return '确定 DP 选课（建议 Math AA HL + 科学 HL）；语言中心托福首考冲刺 100+；参加校内「状元养成计划」竞赛培训。';
+        if(y===10) return 'DP 正式开课；托福/雅思达标；准备港三所需的竞赛（AMC、BC生物等）+ 领导力活动；了解 Non-JUPAS 国际生申请通道。';
+        if(y===11) return 'DP 预估分冲刺（目标 38+，港三竞争激烈）；竞赛奖项产出；开始撰写 Personal Statement；准备面试（港大/港科大）。';
+        if(y===12) return '提交港三 Non-JUPAS 申请；DP 大考；如需备选可同步申请欧陆公立大学（德国低免学费）。';
+      }
+      // === 牛剑方向定制 ===
+      if(hasUK){
+        if(y<=9) return '巩固 IB 各科 7 分档；补全 Service as Action；启动英语标化（TOEFL 110+ / IELTS 7.5+）；探索学科兴趣。';
+        if(y===9) return '确定 DP 选课（建议 Math AA HL + 感兴趣的科学 HL）；参加学科竞赛（AMC、BPHO 等）；准备 MAT/STEP 入学考试基础。';
+        if(y===10) return 'DP 正式开课；学科竞赛冲刺（AIME、BPHO）；MAT/STEP 系统学习；参加学术拓展项目或 EPQ。';
+        if(y===11) return 'DP 预估分冲刺（目标 40+）；MAT/STEP 考试（10-11月）；EPQ 完成；推荐信准备；确定申请学院。';
+        if(y===12) return '提交 UCAS 申请（牛津/剑桥）；DP 大考；面试准备（学院制）；备选申请英国其他 G5 或欧陆大学。';
+      }
+      // === 美本 Top30 方向定制 ===
+      if(hasUS){
+        if(y<=9) return '巩固 IB 各科 7 分档；补全 Service as Action；启动英语标化（TOEFL Junior → TOEFL）+ SAT/ACT 基础。';
+        if(y===9) return '确定 DP 选课；SAT/ACT 首考准备（目标 1450+/32+）；参加学术竞赛（AMC、Physics Bowl 等）+ 社团活动。';
+        if(y===10) return 'DP 正式开课；SAT/ACT 冲刺（目标 1500+/34+）；竞赛进阶（AIME、Brain Bee 等）；开始活动深度建设。';
+        if(y===11) return 'DP 预估分冲刺（目标 38-40）；SAT/ACT 最终出分；活动持续深化（领导力、独特性）；准备加州系文书或其他 Top30 文书。';
+        if(y===12) return '提交美本申请（ED/EA/RD 轮次）；DP 大考；继续活动与文书打磨；备选申请加州系或公立大学。';
+      }
+      // === 欧陆方向定制（德国低免学费） ===
+      if(hasEU){
+        if(y<=9) return '巩固 IB 各科 6+ 分档；补全 Service as Action；启动德语学习（如目标德语授课）+ 英语标化。';
+        if(y===9) return '确定 DP 选课；德语学习（A1→B1）；英语标化冲刺；了解德国大学申请要求（APS、TestAS 等）。';
+        if(y===10) return 'DP 正式开课；德语达到 B1-B2；英语标化达标；参加与申请专业相关的活动或项目。';
+        if(y===11) return 'DP 预估分；德语 B2 冲刺；了解目标德国大学专业要求；准备 APS 审核材料。';
+        if(y===12) return '提交德国大学申请（通过 uni-assist 或直接申请）；DP 大考；申请德国驻华使领馆 APS 审核。';
+      }
+      // === 默认通用路线（无特定方向或混合方向）===
+      if(y<=9){
         if(y===g) return '巩固 IB MYP 各科 Final 7 分档；补全 Service as Action（IB 硬性 7/7）；启动英语标化（TOEFL Junior → TOEFL / IELTS）。';
         if(y===9) return '确定 DP 选课方向（Math AA HL / Bio HL / Chem HL 等）；语言中心强化写作与标化；冲刺高阶竞赛（AMC10/AMC12、BC 生物等）。';
         return '深化学科竞赛（AMC10/AMC12、BC 生物等）；参与校内社团与领导力；保持 Service as Action 持续完成。';
       }
       if(y===10) return 'DP 正式开课；Math AA HL / 科学 HL 冲 7；语言中心托福 / 雅思首考达标；启动科研或深度项目。';
       if(y===11) return 'DP 预估分冲刺（目标 40+，康桥近三届 40+ 高分段约 18%-23%）；高阶竞赛 / 科研产出；文书素材积累；推荐信铺垫。';
-      if(y===12) return 'DP 最终大考；提交 '+escapeHtml(dirAnchor)+' 申请；同步准备欧陆低免学费 / 多国联申备选。';
+      if(y===12) return 'DP 最终大考；提交 '+escapeHtml(dirStr)+' 申请；同步准备欧陆低免学费 / 多国联申备选。';
       return '持续强化学术与活动主线，为下一阶段做准备。';
     }
     var nodes = [];
