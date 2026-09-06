@@ -690,12 +690,15 @@
     setV('nationality', p.nationality||'');
     setV('teacherComment', p.teacherComment||'');
     setV('mbti', p.mbti||'');
-    setV('holland', p.holland||'');
     setV('interestMap', p.interestMap||'');
-    // 恢复 Holland chips
-    var hollandCodes = p.holland ? p.holland.split(',') : [];
+    // 恢复 Holland chips（无需 setV，因为 Holland 没有独立输入框）
+    var hollandCodes = p.holland ? p.holland.split(',').map(function(x){return x.trim();}) : [];
     document.querySelectorAll('#hollandChips input').forEach(function(cb){
-      cb.checked = hollandCodes.indexOf(cb.value) >= 0;
+      var shouldCheck = hollandCodes.indexOf(cb.value) >= 0;
+      if(cb.checked !== shouldCheck){
+        cb.checked = shouldCheck;
+        cb.dispatchEvent(new Event('change'));
+      }
     });
     // 恢复升学方向 chips
     document.querySelectorAll('#directionChips input').forEach(function(cb){ cb.checked = (p.direction||[]).indexOf(cb.value)>=0; });
