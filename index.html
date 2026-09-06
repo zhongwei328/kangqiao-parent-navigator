@@ -1343,7 +1343,7 @@
     h += str.length ? str.slice(0,5).map(function(x){return '<li>'+escapeHtml(x)+'</li>';}).join('') : '<li class="muted">暂无显著高分项</li>';
     h += '</ul></div>';
     h += '<div class="swot-col warn"><div class="swot-h">🔧 主要待改进点</div><ul class="diag">';
-    h += imp.length ? imp.slice(0,6).map(function(x){return '<li>'+escapeHtml(x)+'</li>';}).join('') : '<li class="muted">分数无弱项</li>';
+    h += imp.length ? imp.map(function(x){return '<li>'+escapeHtml(x)+'</li>';}).join('') : '<li class="muted">分数无弱项</li>';
     h += '</ul></div>';
     h += '</div>';
     return h;
