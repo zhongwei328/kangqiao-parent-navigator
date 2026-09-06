@@ -1054,6 +1054,39 @@
           { imp:'中', urg:'低', scope:'校内', source:'信息来源：档案活动录入 — '+a.name });
       });
     }
+    // 6) 校外补充课程（校内资源不足时的补充）
+    // 6.1 美本方向：SAT/ACT 补充
+    if(/美Top30|美本/.test(dirTxt) && p.sat){
+      var satScore = parseInt(p.sat,10)||0;
+      if(satScore < 1450){
+        add('校外 · SAT/ACT 强化冲刺', '美本 Top30 方向已备考 SAT，但分数 '+satScore+' 距 1450+ 仍有差距——建议参加校外 SAT 强化冲刺班或一对一辅导。',
+          { imp:'高', urg:'高', scope:'校外', source:'信息来源：档案 SAT='+satScore+' < 1450' });
+      }
+    }
+    // 6.2 竞赛方向：校外培训补充
+    var compNames = (p.competitions||[]).map(function(c){return c.name.toLowerCase();}).join(' ');
+    if(/amc|math|数学/.test(compNames)){
+      add('校外 · AMC10/12 竞赛冲刺', '档案已录入数学竞赛（AMC），校内「状元养成计划」为基础——若志在 AIME 或更高，建议参加校外 AMC 冲刺班（AoPS 线上课程或线下集训）。',
+        { imp:'中', urg:'中', scope:'校外', source:'信息来源：档案竞赛含 AMC/数学' });
+    }
+    if(/physics|物理/.test(compNames)){
+      add('校外 · Physics Bowl / CAP 物理竞赛', '档案已录入物理竞赛，建议参加校外 Physics Bowl 冲刺班或加拿大 CAP 物理奥赛培训。',
+        { imp:'中', urg:'中', scope:'校外', source:'信息来源：档案竞赛含物理' });
+    }
+    if(/biology|生物/.test(compNames)){
+      add('校外 · USABO / Brain Bee 生物竞赛', '档案已录入生物竞赛，建议参加校外 USABO 或 Brain Bee 冲刺培训。',
+        { imp:'中', urg:'中', scope:'校外', source:'信息来源：档案竞赛含生物' });
+    }
+    // 6.3 牛剑方向：附加考试补充
+    if(/牛剑|UK|英国/.test(dirTxt)){
+      add('校外 · MAT/STEP 入学考试冲刺', '牛剑申请需额外 MAT（数学）或 STEP（数学）入学考试成绩——建议参加校外 MAT/STEP 冲刺班。',
+        { imp:'高', urg:'高', scope:'校外', source:'信息来源：升学方向含牛剑' });
+    }
+    // 6.4 科研/学术补充（针对英美顶尖申请）
+    if(/美Top30|牛剑|英国/.test(dirTxt) && (!p.activities || p.activities.length < 2)){
+      add('校外 · EPQ/科研项目', '英美顶尖申请强烈建议有独立研究项目——可参加校外 EPQ（Extended Project Qualification）或科研课题实践。',
+        { imp:'中', urg:'中', scope:'校外', source:'信息来源：升学方向为英美顶尖+活动偏少' });
+    }
     // 兜底
     if(!items.length){
       add('维持各科 7 分档，冲刺高阶竞赛', '档案各学科 Final 均 ≥7 且四标准无 ≤6 弱项，暂无紧急学术补救；建议持续拔高。',
