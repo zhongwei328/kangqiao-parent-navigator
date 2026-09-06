@@ -339,9 +339,9 @@
   function lsSet(k,v){ try{ if(v) localStorage.setItem(k,v); else localStorage.removeItem(k); }catch(e){} }
   var SUBJ = [
     {key:'math',      name:'数学', en:'Mathematics', re:/mathematics|math|数学/i, prog:'状元养成计划 · AMC / AMC10 冲刺班'},
-    {key:'english',   name:'英语', en:'English',      re:/english|英语/i,          prog:'语言中心 · 托福 / 雅思写作与标化工作坊'},
+    {key:'english',   name:'英语', en:'English',      re:/english|英语|language acquisition|la/i,          prog:'语言中心 · 托福 / 雅思写作与标化工作坊'},
     {key:'science',   name:'科学', en:'Sciences',     re:/sciences?|科学/i,        prog:'状元养成计划 · 机器人 / 未来之城 / 科创'},
-    {key:'chinese',   name:'中文', en:'Chinese',      re:/chinese|中文/i,          prog:'状元养成计划 · 人文板块（演讲 / 写作社团）'},
+    {key:'chinese',   name:'中文', en:'Chinese',      re:/chinese|中文|language and literature|语言与文学|语言文学/i,          prog:'状元养成计划 · 人文板块（演讲 / 写作社团）'},
     {key:'humanities',name:'人文社科', en:'Individuals & Societies', re:/individuals\s+and\s+societies|humanities|人文/i, prog:'状元养成计划 · 模拟联合国 / 辩论'}
   ];
   // IB MYP 各科目官方评估标准（A/B/C/D）中文名 —— 按科目分别给出，避免通用名与各科 rubric 不符
