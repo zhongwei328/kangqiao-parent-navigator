@@ -494,6 +494,7 @@
       
       // 方法1：直接从科目行后面提取
       // si+1 应该是 Final，si+2 应该是 ABCD
+      console.log('科目 '+key+' 行'+si+': si+1='+lines[si+1]+', si+2='+lines[si+2]);
       if(si+1 < lines.length){
         var line1 = lines[si+1].trim();
         var fnVal = parseInt(line1,10);
@@ -503,8 +504,10 @@
       }
       if(si+2 < lines.length){
         var line2 = lines[si+2].trim();
+        console.log('科目 '+key+' line2: "'+line2+'"');
         // 匹配 "5 6 7 7" 格式
         var abMatch = line2.match(/^(\d{1,2})\s+(\d{1,2})\s+(\d{1,2})\s+(\d{1,2})$/);
+        console.log('科目 '+key+' abMatch:', abMatch);
         if(abMatch){
           abMap.A = parseInt(abMatch[1],10);
           abMap.B = parseInt(abMatch[2],10);
