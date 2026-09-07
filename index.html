@@ -432,8 +432,10 @@
 
   // ---- 从文本回填表单 ----
   function fillFromText(text){
-    // 调试：显示提取的文本前500字符到页面
-    document.getElementById('debugInfo').textContent = '【PDF文本前500字符】\n' + text.substring(0,500) + '\n\n【全文长度】' + text.length;
+    // 调试：显示提取的文本前500字符和包含科目的部分
+    var idx = text.toLowerCase().indexOf('language and literature');
+    var subjectPart = idx >= 0 ? text.substring(Math.max(0, idx-100), idx+300) : '未找到 Language and Literature';
+    document.getElementById('debugInfo').textContent = '【PDF文本前500字符】\n' + text.substring(0,500) + '\n\n【包含科目的部分】\n' + subjectPart + '\n\n【全文长度】' + text.length;
     document.getElementById('debugInfo').style.display = 'block';
     var count=0, found=[];
     var m;
