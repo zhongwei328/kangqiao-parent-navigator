@@ -557,8 +557,10 @@
         }
       }
       // 只有当找到有效的分数时才保存，且只保留第一次找到的
+      console.log('科目 '+key+' 准备保存: fg='+fg+', abMap='+JSON.stringify(abMap)+', scores[key]已存在='+(scores[key]?'是':'否'));
       if((abMap.A!==null || abMap.B!==null || abMap.C!==null || abMap.D!==null || fg!==null) && !scores[key]){
         scores[key] = {fg:fg, abcd:(abMap.A!==null?[abMap.A,abMap.B,abMap.C,abMap.D]:null)};
+        console.log('科目 '+key+' 已保存: '+JSON.stringify(scores[key]));
       }
     }
     
