@@ -505,8 +505,8 @@
       if(si+2 < lines.length){
         var line2 = lines[si+2].trim();
         console.log('科目 '+key+' line2: "'+line2+'"');
-        // 匹配 "5 6 7 7" 格式
-        var abMatch = line2.match(/^(\d{1,2})\s+(\d{1,2})\s+(\d{1,2})\s+(\d{1,2})$/);
+        // 匹配 "5 6 7 7" 格式（更宽松的匹配）
+        var abMatch = line2.match(/(\d{1,2})\s+(\d{1,2})\s+(\d{1,2})\s+(\d{1,2})/);
         console.log('科目 '+key+' abMatch:', abMatch);
         if(abMatch){
           abMap.A = parseInt(abMatch[1],10);
