@@ -166,6 +166,7 @@
       <label style="margin-top:0">📄 上传学校 PDF 报告（自动抽取辅助填表）</label>
       <input id="pdfFile" type="file" accept="application/pdf" />
       <div id="pdfStatus"></div>
+      <div id="debugInfo" style="margin-top:10px; padding:10px; background:#f5f5f5; border:1px solid #ddd; font-size:12px; display:none; white-space:pre-wrap; max-height:200px; overflow-y:auto;"></div>
       <p class="hint">解析失败也不会阻塞——未识别的字段可手动补。PDF 仅是"加速"，不是必需。</p>
       <details style="margin-top:8px">
         <summary class="muted" style="cursor:pointer;font-size:13px">无 PDF？粘贴报告原文自助识别</summary>
@@ -308,11 +309,11 @@
         <h3>⑦ 配套练习模块（边诊断边练）</h3>
         <p class="muted" style="margin:0 0 12px">下面两个工具与诊断结论配套，把"待改进点"直接转化为日常练习。建议新标签打开使用。</p>
         <div class="practice-grid">
-          <div class="practice-card">
+          <div class="practice-card" id="amcCard" style="display:none">
             <div class="pc-head"><span class="pc-tag amc">AMC10 数学</span><span class="pc-title">错题练习 · 真题库</span></div>
             <p class="pc-desc">AMC10 错题本（推荐），60题练习+打印合一，在线作答即时判分，Ctrl+P 直接打印成卷。KaTeX 离线渲染，无需 Key。</p>
-            <a id="amcLink" class="pc-extlink" href="https://zhongwei328.github.io/Henry-AMC10-Practice/Henry_AMC10_%E9%94%99%E9%A2%98%E6%9C%AC.html" target="_blank" rel="noopener">↗ 在新标签打开 AMC10 错题本</a>
-            <p class="pc-note muted">外部工具：版权归原题库与 Henry 练习项目所有。</p>
+            <a id="amcLink" class="pc-extlink" href="#" target="_blank" rel="noopener">↗ 在新标签打开 AMC10 错题本</a>
+            <p class="pc-note muted">外部工具：版权归原题库与练习项目所有。</p>
           </div>
           <div class="practice-card">
             <div class="pc-head"><span class="pc-tag toefl">托福写作</span><span class="pc-title">AI 批改 · 写作 agent</span></div>
@@ -329,7 +330,7 @@
   </section>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
 <script>
 // ===APP_START===
   (function(){
@@ -408,7 +409,7 @@
   async function extractPdfText(file){
     if(typeof pdfjsLib==='undefined') throw new Error('PDF 组件未加载（请检查网络后刷新）');
     pdfjsLib.GlobalWorkerOptions.workerSrc =
-      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      'https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
     var buf = await file.arrayBuffer();
     var pdf = await pdfjsLib.getDocument({data:buf}).promise;
     var lines = [];
@@ -431,6 +432,9 @@
 
   // ---- 从文本回填表单 ----
   function fillFromText(text){
+    // 调试：显示提取的文本前500字符到页面
+    document.getElementById('debugInfo').textContent = '【PDF文本前500字符】\n' + text.substring(0,500) + '\n\n【全文长度】' + text.length;
+    document.getElementById('debugInfo').style.display = 'block';
     var count=0, found=[];
     var m;
     m = text.match(/Student\s*Name\s*[:\-]\s*([^\n]*?)(?=\s+Student\s+ID\s*:|$)/i);
@@ -449,20 +453,171 @@
     // ---- 学业成绩：优先解析汇总表（Final + A/B/C/D 四标准）----
     var lines = text.split('\n');
     var sumStart = -1;
-    for(var si=0; si<lines.length; si++){ if(/achievement levels/i.test(lines[si]) && /final grade/i.test(lines[si])){ sumStart=si; break; } }
+    // 多种可能的表头模式
+    for(var si=0; si<lines.length; si++){
+      var l = lines[si];
+      if(/achievement levels/i.test(l) && /final grade/i.test(l)){ sumStart=si; break; }
+      if(/subject summary/i.test(l) && /final/i.test(l)){ sumStart=si; break; }
+      if(/assessment criteria/i.test(l) && /final/i.test(l)){ sumStart=si; break; }
+      if(/course grade/i.test(l) && /final/i.test(l)){ sumStart=si; break; }
+    }
     var sumEnd = lines.length;
-    if(sumStart>=0){ for(var ei=sumStart; ei<lines.length; ei++){ if(/interdisciplinary/i.test(lines[ei])){ sumEnd=ei; break; } } }
+    if(sumStart>=0){ 
+      for(var ei=sumStart; ei<lines.length; ei++){ 
+        if(/interdisciplinary/i.test(lines[ei]) || /overall/i.test(lines[ei]) || /totals/i.test(lines[ei])){ sumEnd=ei; break; } 
+      } 
+    }
     var scores = {};
-    if(sumStart>=0){
+    
+    // === 新增：直接从学生报告页提取成绩（格式：G7 Chinese A: Language and Literature 后跟 A/B/C/D 分数）===
+    // 调试：记录找到的科目头
+    var foundSubjects = [];
+    var allDebugLines = [];
+    for(var si=0; si<lines.length; si++){
+      var sln = lines[si].trim();
+      // 调试：记录所有包含科目关键字的行
+      if(/chinese|language and literature|english|language acquisition|mathematics|math|sciences?|science|individuals and societies|humanities/i.test(sln)){
+        foundSubjects.push(si + ': ' + sln.substring(0,50));
+        allDebugLines.push('科目行 #' + si + ': ' + sln.substring(0,80));
+      }
+      var key = null;
+      if(/chinese|language and literature/i.test(sln)) key = 'chinese';
+      else if(/english|language acquisition/i.test(sln)) key = 'english';
+      else if(/mathematics|math/i.test(sln)) key = 'math';
+      else if(/sciences?|science/i.test(sln)) key = 'science';
+      else if(/individuals and societies|humanities/i.test(sln)) key = 'humanities';
+      if(!key) continue;
+      // 找到科目头后，提取后续行的 A/B/C/D 分数
+      // PDF格式：G7 Chinese A: Language and Literature | A B C D | 6 | Camilla Tian 5 6 7 7
+      var abMap = {A:null, B:null, C:null, D:null};
+      var fg = null;
+      // 提取科目头后面 20 行的内容用于调试
+      var debugBlock = lines.slice(si, Math.min(si+20, lines.length)).join(' | ');
+      allDebugLines.push('提取 ' + key + ' at line ' + si + ': ' + debugBlock.substring(0,200));
+      console.log('找到科目 ' + key + ' at line ' + si + ': ' + debugBlock);
+      
+      // 策略：先找 "A B C D" 行，然后下一行是 Final，再下一行是 "老师名 ABCD分数"
+      var foundABCRow = -1;
+      for(var sj=si; sj<Math.min(si+25, lines.length); sj++){
+        var tl = lines[sj].trim();
+        // 找 A B C D 这一行（可能有多个空格）
+        if(/^A\s+B\s+C\s+D$/i.test(tl) || /^A\s{2,}B\s{2,}C\s{2,}D$/i.test(tl)){
+          foundABCRow = sj;
+          // 下一行是 Final 分数
+          if(sj+1 < lines.length){
+            var fnVal = parseInt(lines[sj+1].trim(),10);
+            if(fnVal >= 1 && fnVal <= 7) fg = fnVal;
+          }
+          // 再下一行是 "老师名 A分数 B分数 C分数 D分数"
+          if(sj+2 < lines.length){
+            var scoreLine = lines[sj+2].trim();
+            // 匹配末尾的4个数字（ABCD分数）
+            var scores = scoreLine.match(/(\d{1,2})\s+(\d{1,2})\s+(\d{1,2})\s+(\d{1,2})$/);
+            if(scores){
+              abMap.A = parseInt(scores[1],10);
+              abMap.B = parseInt(scores[2],10);
+              abMap.C = parseInt(scores[3],10);
+              abMap.D = parseInt(scores[4],10);
+            }
+          }
+          break;
+        }
+      }
+      
+      // 如果没找到 A B C D 格式，尝试旧方法
+      if(foundABCRow < 0){
+        for(var sj=si+1; sj<Math.min(si+20, lines.length); sj++){
+          var tl = lines[sj].trim();
+          if(tl === 'A' || tl === 'a'){ 
+            if(sj+1<lines.length){ var av=parseInt(lines[sj+1].trim(),10); if(av>=0&&av<=8) abMap.A = av; }
+          }
+          else if(tl === 'B' || tl === 'b'){
+            if(sj+1<lines.length){ var bv=parseInt(lines[sj+1].trim(),10); if(bv>=0&&bv<=8) abMap.B = bv; }
+          }
+          else if(tl === 'C' || tl === 'c'){
+            if(sj+1<lines.length){ var cv=parseInt(lines[sj+1].trim(),10); if(cv>=0&&cv<=8) abMap.C = cv; }
+          }
+          else if(tl === 'D' || tl === 'd'){
+            if(sj+1<lines.length){ var dv=parseInt(lines[sj+1].trim(),10); if(dv>=0&&dv<=8) abMap.D = dv; }
+          }
+          var abSameLine = tl.match(/^([A-Da-d])\s+(\d{1,2})$/i);
+          if(abSameLine){
+            var letter = abSameLine[1].toUpperCase();
+            var val = parseInt(abSameLine[2],10);
+            if(letter==='A' && val>=0&&val<=8) abMap.A = val;
+            else if(letter==='B' && val>=0&&val<=8) abMap.B = val;
+            else if(letter==='C' && val>=0&&val<=8) abMap.C = val;
+            else if(letter==='D' && val>=0&&val<=8) abMap.D = val;
+          }
+          else if(/^final\s*\(?\d+\s*-\s*\d+\)?$/i.test(tl)){
+            if(sj+1<lines.length){ var fv=parseInt(lines[sj+1].trim(),10); if(fv>=1&&fv<=7) fg = fv; }
+          }
+          var dAndFinal = tl.match(/^D\s+(\d{1,2})\s+(\d{1,2})$/i);
+          if(dAndFinal){
+            abMap.D = parseInt(dAndFinal[1],10);
+            fg = parseInt(dAndFinal[2],10);
+          }
+        }
+      }
+      // 只有当找到有效的分数时才保存
+      console.log('科目 ' + key + ' 提取结果: A=' + abMap.A + ' B=' + abMap.B + ' C=' + abMap.C + ' D=' + abMap.D + ' Final=' + fg);
+      if(abMap.A!==null || abMap.B!==null || abMap.C!==null || abMap.D!==null || fg!==null){
+        scores[key] = {fg:fg, abcd:(abMap.A!==null?[abMap.A,abMap.B,abMap.C,abMap.D]:null)};
+      }
+    }
+    console.log('找到的科目行: ' + foundSubjects.join('; '));
+    // 将所有调试信息存储起来，稍后显示
+    window._debugSubjectLines = allDebugLines;
+    
+    // 如果找到了学生报告页的成绩，跳过汇总表的提取
+    if(Object.keys(scores).length > 0 && sumStart >= 0){
+      // 已从学生报告页提取到成绩，不再从汇总表提取
+    } else if(sumStart>=0){
+      // 兜底：从汇总表提取
       for(var i=sumStart; i<sumEnd; i++){
         var ln=lines[i].trim(); var key=null;
         for(var k=0;k<SUBJ.length;k++){ if(SUBJ[k].re.test(ln)){ key=SUBJ[k].key; break; } }
+        // 如果没找到关键科目，尝试模糊匹配（如 "Chinese A" 或 "Language and Literature"）
+        if(!key){
+          if(/language and literature|chinese a|chinese|chinese a \(la\)/i.test(ln)) key = 'chinese';
+          else if(/language acquisition|english a|english|english a \(la\)/i.test(ln)) key = 'english';
+          else if(/mathematics|math|mathematics \(sm\)/i.test(ln)) key = 'math';
+          else if(/sciences?|science|biology|chemistry|physics/i.test(ln)) key = 'science';
+          else if(/individuals and societies|humanities|social science/i.test(ln)) key = 'humanities';
+        }
         if(!key) continue;
-        var fg=null, abcd=null;
-        for(var j=i+1; j<Math.min(i+6,lines.length); j++){
+        var fg=null, abcd=null, foundFinalRange=false;
+        for(var j=i+1; j<Math.min(i+15,lines.length); j++){
           var t=lines[j].trim();
+          // 检测 "Final (1-7)" 这样的范围标题行，标记并跳过下一行（因为那是范围数字）
+          if(/^final\s*\(?\d+\s*-\s*\d+\)?$/i.test(t)){ foundFinalRange=true; continue; }
+          // 如果上一行是 Final 范围，跳过这个数字（它是范围说明，不是实际分数）
+          if(foundFinalRange && /^(\d{1,2})$/.test(t)){ foundFinalRange=false; continue; }
+          // 优先匹配 Final 后面的分数（必须确保有实际分数，而不是范围中的数字）
+          // 匹配模式：Final (1-7): 6 或 Final Grade: 6 或 Final: 6
+          // 不捕获范围中的数字，只捕获冒号/空格后面的实际分数
+          var finalMatch = t.match(/^final\s*(?:grade)?[\s:]*\(?\d+\s*-\s*\d+\)?[\s:]*(\d{1,2})$/i) || 
+                           t.match(/^final\s*(?:grade)?[\s:]*(\d{1,2})$/i) ||
+                           t.match(/final[:\-\s]*\(?\d+\s*-\s*\d+\)?[\s:]+(\d{1,2})/i) ||
+                           t.match(/final[:\-\s]+(\d{1,2})/i);
+          if(finalMatch){
+            var fn = parseInt(finalMatch[1],10);
+            if(fn>=1 && fn<=7){ fg = fn; foundFinalRange=false; continue; }
+          }
+          // 匹配四标准 (A B C D 后面的数字，单行格式如 "5 6 7 7")
+          var m4=t.match(/^(\d)\s+(\d)\s+(\d)\s+(\d)$/); if(m4 && abcd==null) abcd=[+m4[1],+m4[2],+m4[3],+m4[4]];
+          // 匹配单独的标准行，如 "A: 5" 或 "A 5" 或 "A=5"
+          var abMatch = t.match(/^([A-Da-d])[:\s=]+(\d{1,2})$/i);
+          if(abMatch){
+            var letter = abMatch[1].toUpperCase();
+            var val = parseInt(abMatch[2],10);
+            if(letter==='A' && abcd==null) abcd=[val,null,null,null];
+            else if(letter==='B' && abcd && abcd[1]==null) abcd[1]=val;
+            else if(letter==='C' && abcd && abcd[2]==null) abcd[2]=val;
+            else if(letter==='D' && abcd && abcd[3]==null) abcd[3]=val;
+          }
+          // 兜底：单独的数字行（用于某些格式的 Final 分数），但跳过紧跟 Final 范围的行
           var m1=t.match(/^(\d{1,2})$/); if(m1){ var n=parseInt(m1[1],10); if(n>=1&&n<=7&&fg==null) fg=n; }
-          var m4=t.match(/(\d)\s+(\d)\s+(\d)\s+(\d)(?:\s+\S+)*$/); if(m4 && abcd==null) abcd=[+m4[1],+m4[2],+m4[3],+m4[4]];
         }
         if(fg!=null || abcd!=null) scores[key]={fg:fg, abcd:abcd};
       }
@@ -474,7 +629,20 @@
       idx.forEach(function(sb,bi){
         var end=(bi+1<idx.length)?idx[bi+1].i:lines.length;
         var block=lines.slice(sb.i,end).join('\n');
-        var fg=block.match(/final\s*grade\s*[:\-]?\s*([1-7])/i);
+        // 优先匹配 Final 后面的实际分数（不捕获范围中的数字）
+        // 首先移除 "Final (1-7)" 这样的范围标题行及其后面的范围数字
+        var blockClean = block.replace(/^final\s*\(?\d+\s*-\s*\d+\)?$/gim, '').replace(/^final\s*\(?\d+\s*-\s*\d+\)?\s*(\d{1,2})$/gim, '');
+        var fgMatch = blockClean.match(/^final\s*(?:grade)?[\s:]*\(?\d+\s*-\s*\d+\)?[\s:]*(\d{1,2})$/im) || 
+                      blockClean.match(/^final\s*(?:grade)?[\s:]*(\d{1,2})$/im) ||
+                      blockClean.match(/final[:\-\s]*\(?\d+\s*-\s*\d+\)?[\s:]+(\d{1,2})/i) ||
+                      blockClean.match(/final[:\-\s]+(\d{1,2})/i);
+        var fg = fgMatch ? fgMatch[1] : null;
+        // 如果捕获到的是范围中的数字（如1-7中的1），则忽略
+        if(fg){
+          var fn = parseInt(fg,10);
+          // 如果数字不在1-7范围，或者看起来像是范围的一部分，则不采用
+          if(fn<1 || fn>7) fg = null;
+        }
         var cMap={A:null,B:null,C:null,D:null}; var cm; var cre=/([A-Da-d])\s*[:.\-]?\s*(\d{1,2})/g;
         while((cm=cre.exec(block))!==null){ var L=cm[1].toUpperCase(); var n=parseInt(cm[2],10); if((L in cMap)&&n>=0&&n<=8) cMap[L]=n; }
         if(cMap.A==null||cMap.B==null||cMap.C==null||cMap.D==null){
@@ -482,19 +650,37 @@
           while((nm=nre.exec(bn))!==null){ var nx=parseInt(nm[1],10); if(nx>=0&&nx<=8) nums.push(nx); }
           var ni=0; ['A','B','C','D'].forEach(function(K){ if(cMap[K]==null&&ni<nums.length) cMap[K]=nums[ni++]; });
         }
-        scores[sb.f]={fg: fg?fg[1]:null, abcd:null, cMap:cMap};
+        scores[sb.f]={fg: fg, abcd:null, cMap:cMap};
       });
     }
+    // 调试：输出提取的分数到页面和状态栏
+    var debugMsg = '【提取结果】';
+    var foundKeys = Object.keys(scores);
+    debugMsg += '找到科目: ' + foundKeys.join(',') + ';\n';
+    var debugHtml = '=== 提取调试 ===\n';
     SUBJ.forEach(function(s){
-      var r=scores[s.key]; if(!r) return;
+      var r=scores[s.key]; 
+      debugMsg += s.name + '=' + (r && r.fg ? r.fg : '?') + (r && r.abcd ? '(ABCD:'+r.abcd.join(',')+')' : '') + '; ';
+      debugHtml += s.name + ': Final=' + (r && r.fg ? r.fg : '?') + ', ABCD=' + (r && r.abcd ? r.abcd.join(',') : '无') + '\n';
+      console.log(s.name + ' (key=' + s.key + '):', r);
+      if(!r) return;
       if(r.fg!=null){ setV('subject_score_'+s.key, r.fg); count++; found.push(s.name+'成绩'); }
       var ab = (r.abcd)? r.abcd : (r.cMap? [r.cMap.A,r.cMap.B,r.cMap.C,r.cMap.D] : null);
       if(ab){ ['A','B','C','D'].forEach(function(K,ki){ if(ab[ki]!=null) setV('subject_'+K.toLowerCase()+'_'+s.key, ab[ki]); }); count++; found.push(s.name+'四标准'); }
     });
+    // 在页面显示调试信息
+    var debugEl = document.getElementById('debugInfo');
+    if(debugEl){ 
+      var subjectLines = window._debugSubjectLines || [];
+      debugEl.textContent = '=== 原始文本中的科目行 ===\n' + subjectLines.join('\n') + '\n\n' + debugHtml; 
+      debugEl.style.display = 'block'; 
+    }
+    // 在状态栏显示调试信息
+    setStatus(debugMsg + ' | ' + (count>0 ? '已识别'+count+'项：'+found.join('、') : '未识别'), count>0?'ok':'warn');
 
     // ---- 老师评语：跨格式通用抓取（不再依赖 G7/Phase3；捕获所有 Comments 块并关联最近科目）----
     var commentsAll=[];
-    var SUBJ_LABEL={ 'language and literature':'中文课','chinese':'中文课','language acquisition':'英语课','english':'英语课','mathematics':'数学课','math':'数学课','sciences':'科学课','science':'科学课','individuals and societies':'人文社科课','social emotional':'社会情感课','music':'音乐课','design':'设计课','swimming':'游泳课','physical and health education':'体育与健康教育课','adventure education':'冒险教育课' };
+    var SUBJ_LABEL={ 'language and literature':'中文课','chinese':'中文课','chinese a':'中文课','g7 chinese':'中文课','language acquisition':'英语课','english':'英语课','g7 english':'英语课','mathematics':'数学课','math':'数学课','g7 math':'数学课','sciences':'科学课','science':'科学课','g7 science':'科学课','individuals and societies':'人文社科课','humanities':'人文社科课','g7 humanities':'人文社科课','social emotional':'社会情感课','music':'音乐课','design':'设计课','swimming':'游泳课','physical and health education':'体育与健康教育课','adventure education':'冒险教育课' };
     var SUBJ_LABEL_RE=new RegExp('('+Object.keys(SUBJ_LABEL).map(function(x){return x.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');}).join('|')+')','ig');
     for(var ci=0; ci<lines.length; ci++){
       if(!/comments?\s*:/i.test(lines[ci])) continue;
@@ -502,7 +688,10 @@
       for(var j=ci+1; j<Math.min(ci+30, lines.length); j++){
         var l=lines[j].trim();
         if(!l) continue;
-        if(/^Grade\s+1\s+2\s+3/i.test(l) || /^Boundaries/i.test(l) || /^Totals:/i.test(l) || /^Final Grade/i.test(l) || /Kang Chiao|Henry\s*Mu|Page\s+\d|No\.\s*\d|Xihuan|Huaqiao|Kunshan|Jiangsu|215332/i.test(l)) break;
+        // 遇到表格/评分边界 → 结束评语提取
+        if(/^Grade\s+1\s+2\s+3/i.test(l) || /^Boundaries/i.test(l) || /^Totals:/i.test(l) || /^Final Grade/i.test(l)) break;
+        // 跳过页眉页脚（Kang Chiao / Page xx / Henry Mu 等），但不中断提取后续内容
+        if(/^Kang Chiao|^Page\s+\d|No\.\s*\d|Xihuan|Huaqiao|Kunshan|Jiangsu|215332|Henry\s*Mu$/.test(l)) continue;
         txt.push(l);
       }
       var body=txt.join(' ').replace(/\s+/g,' ').trim();
@@ -515,7 +704,20 @@
       }
       commentsAll.push(label+'：'+body);
     }
-    if(commentsAll.length){ setV('teacherComment', commentsAll.join('\n')); count++; found.push('老师评语'); }
+    // 只保留有分数的5门课（数学、英语、科学、中文、人文社科）的评语
+    var scoredSubjKeys = {};
+    SUBJ.forEach(function(s){ if(scores && scores[s.key]) scoredSubjKeys[s.key] = true; });
+    var filteredComments = commentsAll.filter(function(c){
+      var key = null;
+      if(/中文课/.test(c)) key = 'chinese';
+      else if(/英语课/.test(c)) key = 'english';
+      else if(/人文社科课/.test(c)) key = 'humanities';
+      else if(/科学课/.test(c)) key = 'science';
+      else if(/数学课/.test(c)) key = 'math';
+      return key && scoredSubjKeys[key];
+    });
+    if(filteredComments.length){ setV('teacherComment', filteredComments.join('\n')); count++; found.push('老师评语'); }
+    else if(commentsAll.length){ setV('teacherComment', commentsAll.join('\n')); count++; found.push('老师评语'); }
 
     // 高亮学业成绩区
     SUBJ.forEach(function(s){ var box=document.getElementById('subj_'+s.key); if(box && v('subject_score_'+s.key)){ box.classList.add('flash'); setTimeout(function(){box.classList.remove('flash');},2200); } });
@@ -533,12 +735,21 @@
     if(!file){ return; }
     setStatus('正在解析 PDF…', '');
     try{
+      // 检查 pdfjsLib 是否加载
+      if(typeof pdfjsLib === 'undefined'){
+        setStatus('PDF库未加载，请检查网络或刷新页面重试', 'err');
+        alert('PDF库未加载，请刷新页面');
+        return;
+      }
       var text = await extractPdfText(file);
+      // 调试：显示提取的文本长度
+      setStatus('PDF已解析('+text.length+'字符)，正在提取分数...', '');
       var r = fillFromText(text);
       if(r.count>0) setStatus('✅ 已识别 '+r.count+' 项：'+r.found.join('、')+'（未识别的字段可手动补）', 'ok');
-      else setStatus('未能自动匹配字段，请手动填写，或用下方“粘贴原文重新识别”。', 'warn');
+      else setStatus('未能自动匹配字段，请手动填写，或用下方"粘贴原文重新识别"。', 'warn');
     }catch(err){
       setStatus('PDF 解析失败：'+err.message+'。请手动填写，或粘贴原文重新识别。', 'err');
+      alert('PDF解析错误: ' + err.message);
     }
   });
 
@@ -999,6 +1210,61 @@
         source: meta.source||'', links: meta.links||null
       });
     }
+    // 0) 老师评语改进建议（从评语中提取具体改进点）
+    var cm = summarizeComments(p);
+    if(cm && cm.improve && cm.improve.length){
+      // 改进建议按科目分类
+      var cmBySubj = { chinese:[], english:[], humanities:[], science:[] };
+      var c = p.teacherComment||'';
+      c.split(/\n/).forEach(function(line){
+        var ci = line.indexOf('：');
+        if(ci<0) return;
+        var subjKey = null;
+        var lowerLine = line.toLowerCase();
+        // 支持多种格式：中文课、英语课、G7 Chinese、Language and Literature 等
+        if(/中文课|chinese|chinese a|language and literature/i.test(line)) subjKey = 'chinese';
+        else if(/英语课|english|language acquisition/i.test(line)) subjKey = 'english';
+        else if(/人文社科|humanities|individuals and societies/i.test(line)) subjKey = 'humanities';
+        else if(/科学课|sciences|science/i.test(line)) subjKey = 'science';
+        if(!subjKey) return;
+        // 该科目的改进建议：用关键词匹配（改进建议中的核心词在评语中出现即可）
+        var text = line.slice(ci+1);
+        cm.improve.forEach(function(imp){
+          // 提取改进建议中的关键词进行匹配（支持多种变体）
+          var kw = imp.replace(/待提升|待加强|可进一步/,'').replace(/有待/,'').trim();
+          var kwVariants = [kw];
+          // 添加常见变体
+          if(kw.indexOf('工整')>=0) kwVariants.push('书写');
+          if(kw.indexOf('表达')>=0) kwVariants.push('写作');
+          if(kw.indexOf('分析')>=0) kwVariants.push('批判');
+          if(kw.indexOf('实验')>=0) kwVariants.push('科学实验');
+          var matched = kwVariants.some(function(v){ return v.length>=2 && text.indexOf(v)>=0; });
+          if(matched && cmBySubj[subjKey].indexOf(imp)<0){
+            cmBySubj[subjKey].push(imp);
+          }
+        });
+      });
+      // 为每个有改进建议的科目生成行动项
+      SUBJ.forEach(function(s){
+        var imps = cmBySubj[s.key];
+        if(!imps || !imps.length) return;
+        // 跳过已有分数弱项的科目（避免重复）
+        var subj = p.subjects[s.key];
+        if(subj){
+          var weak = critList(subj).filter(function(c){return c.n<=6;});
+          if(subj.score!=null && subj.score<=5) return;
+          if(weak.length) return;
+        }
+        // 生成行动项
+        var focus = imps.slice(0,2).join('、');
+        add('校内 · '+s.name+'课（'+s.en+'）— 报名「'+s.prog+'」，重点提升：'+focus,
+          '基于老师评语：'+imps.join('；')+' —— 建议通过康桥校内「'+s.prog+'」针对性提升。',
+          { imp: '中', urg: '中', scope:'校内',
+            source:'信息来源：老师评语 — '+s.name+'课',
+            links:[IB_CUR, kqProgLink(s.prog)] });
+      });
+    }
+
     // 1) 学科弱项（基于录入的四标准 / Final）→ 具体校内课程 + 标准 + 优先级 + 信息来源/链接
     //    按弱项程度排序（弱项最多的排前面），全部保留
     //    但若标化已达标（如英语托福>=100），跳过校内课程推荐
@@ -1006,15 +1272,15 @@
     SUBJ.forEach(function(s){
       var subj = p.subjects[s.key];
       // 跳过没有分数的科目
-      if(subj.score==null && !subj.a && !subj.b && !subj.c && !subj.d) return;
+      if(!subj || (subj.score==null && !subj.a && !subj.b && !subj.c && !subj.d)) return;
       // 跳过没有弱项的科目（Final > 6 且所有标准 > 6）
       var weak = critList(subj).filter(function(c){return c.n<=6;});
-      if(!(subj.score!=null && subj.score<=6) && weak.length === 0) return;
+      if(!(subj.score!=null && subj.score<=5) && weak.length === 0) return;
       // 标化成绩检查：若已达标，完全跳过该学科的行动项（不需要推荐校内课程）
       var alreadyGood = stdGood(s.key);
       if(alreadyGood) return;
       // 计算弱项数量
-      var weakCount = (subj.score!=null && subj.score<=6) ? 1 : 0;
+      var weakCount = (subj.score!=null && subj.score<=5) ? 1 : 0;
       weakCount += weak.length;
       subjWithWeakness.push({s:s, subj:subj, weak:weak, weakCount:weakCount});
     });
@@ -1027,10 +1293,10 @@
         ? '重点提升 '+weak.map(function(c){ return c.L+'（'+critName(s.key,c.L)+'）'+c.n+'/8'; }).join('、')
         : '巩固 Final '+subj.score+'/7 档，保持四标准 ≥7';
       var parts=[];
-      if(subj.score!=null && subj.score<=6) parts.push('Final '+subj.score+'/7（低于 7 分档）');
+      if(subj.score!=null && subj.score<=5) parts.push('Final '+subj.score+'/7（低于 6 分档）');
       if(weak.length) parts.push('四标准弱项 '+weak.map(function(c){return c.L+c.n;}).join('、'));
       var ev = s.name+' '+(parts.join('；')||'（分数偏低）');
-      var isCore = subj.score!=null && subj.score<=6;
+      var isCore = subj.score!=null && subj.score<=5;
       add('校内 · '+s.name+'课（'+s.en+'）— 报名「'+s.prog+'」，'+focus,
         '基于档案录入：'+ev+' —— 对应校内课程 '+s.name+'课（'+s.en+'）需针对性补强，建议走康桥校内「'+s.prog+'」。',
         { imp: isCore?'高':'中', urg: '中', scope:'校内',
@@ -1142,7 +1408,7 @@
     // 分析主要方向以定制路线
     var hasHK = /港三|香港/.test(dirStr);
     var hasUK = /牛剑|UK|英国/.test(dirStr);
-    var hasUS = /美Top|美国/.test(dirStr);
+    var hasUS = /美Top|美国|美本/.test(dirStr);
     var hasEU = /欧陆|德国/.test(dirStr);
     var end = 12; if(g>end) end = g;
     // 定制化阶段文本
@@ -1303,9 +1569,9 @@
     var subjData = [];
     SUBJ.forEach(function(sub){
       var subj=p.subjects[sub.key];
-      if(subj.score==null && !subj.a && !subj.b && !subj.c && !subj.d) return;
+      if(!subj || (subj.score==null && !subj.a && !subj.b && !subj.c && !subj.d)) return;
       var weak = critList(subj).filter(function(c){return c.n<=6;});
-      var weakCount = (subj.score!=null && subj.score<=6) ? 1 : 0;
+      var weakCount = (subj.score!=null && subj.score<=5) ? 1 : 0;
       weakCount += weak.length;
       var isStrong = subj.score!=null && subj.score>=7 && weak.length===0;
       subjData.push({sub:sub, subj:subj, weak:weak, weakCount:weakCount, isStrong:isStrong});
@@ -1318,7 +1584,7 @@
       if(d.isStrong){
         strScore.push(sub.name+'课 成绩稳健（Final '+subj.score+'/7，四标准全 ≥7）');
       }
-      if(subj.score!=null && subj.score<=6) impScore.push(sub.name+'课 Final '+subj.score+'/7 低于 7 分档');
+      if(subj.score!=null && subj.score<=5) impScore.push(sub.name+'课 Final '+subj.score+'/7 低于 6 分档');
       weak.forEach(function(c){ impScore.push(sub.name+'课 '+c.L+'（'+critName(sub.key,c.L)+'）'+c.n+'/8 偏弱'); });
     });
     // Service as Action：IB 硬性毕业 / 升学资格门槛，未达标即进待改进
@@ -1430,7 +1696,13 @@
     '  "actions": [ {"title":"行动标题","reason":"基于该生档案某个具体字段的触发原因","scope":"校内 或 校外","importance":"高/中/低（对升学竞争力的重要性）","urgency":"高/中/低（是否临近截止/资格门槛）"} ]\n}\n'+
     '// 要求：\n'+
     '// 1) conclusion.positioning 须综合 学科均分 + 身份/国籍 + 升学方向；edge 必须覆盖 MBTI/Holland/兴趣地图 与升学方向/专业的匹配度，不能只谈成绩；risks 必须点明 英语标化缺口 与 Service as Action 完成度 两类硬门槛（若档案未录入则写“未录入”）。\n'+
-    '// 2) actions 4-6 条；scope 只能取「校内」或「校外」。\n'+
+    '// 2) 【强制检查清单】actions 必须覆盖所有弱项学科，逐项核对：\n'+
+    '    ① 列出档案中所有 Final ≤ 5 的学科，每科必须有校内行动项\n'+
+    '    ② 列出档案中所有四标准(A/B/C/D) ≤ 6 的学科，每科必须有校内行动项\n'+
+    '    ③ 人文社科(Individuals & Societies)、中文(Chinese)、科学(Sciences)、英语(English)、数学(Mathematics) 逐个检查过去\n'+
+    '    示例：人文社科 Final=5、B=3、C=5 → 必须生成「校内 · 人文社科课 — 报名状元养成计划模拟联合国/辩论，重点提升 B（调查）3/8、C（交流）5/8」\n'+
+    '    示例：中文 Final=6、A=5、B=6 → 必须生成「校内 · 中文课 — 报名状元养成计划人文板块演讲/写作社团，重点提升 A（分析）5/8」\n'+
+    '    共 4-10 条（每科弱项至少 1 条）；scope 只能取「校内」或「校外」。\n'+
     '//    - 标「校内」的 title 必须点名具体 IB MYP 学科课程 + 哪个四标准(A/B/C/D)需补强 + 白名单中的康桥校内真实资源，例如「校内 · 数学(Mathematics)课 — 报名「状元养成计划」AMC/AMC10 冲刺班，重点提升 B（探究与规律）6/8」，或「校内 · 英语(English)课 — 参加语言中心托福/雅思写作工作坊，重点提升 D（沟通）6/8」；不要泛泛写“语言中心”。\n'+
     '//    - 标「校外」的：托福/雅思集训、暑期科研、国际竞赛报名等需校外补充的。\n'+
     '// 3) 每条 action 须关联档案真实字段，reason 写清触发依据；性格与兴趣地图须转化为具体行动（按 Holland 代码选社团、按兴趣地图深化项目）。\n'+
@@ -1587,6 +1859,20 @@
     }
     document.getElementById('rActions').innerHTML = actionsHtml;
     document.getElementById('rRoadmap').innerHTML = roadmap(p);
+
+    // 动态显示 AMC 错题本：仅当有数学竞赛或特定学生（如 Henry）时显示
+    var amcCard = document.getElementById('amcCard');
+    var hasMathComp = p.competitions && p.competitions.some(function(c){ return /amc|数学|math/i.test(c.name); });
+    var isHenry = /henry|亨利|牟海天/i.test(p.name||'');
+    if(hasMathComp || isHenry){
+      amcCard.style.display = 'block';
+      // 动态更新链接中的名字
+      var amcLink = document.getElementById('amcLink');
+      var nameForLink = (p.name||'Student').replace(/\s+/g,'_');
+      amcLink.href = 'https://zhongwei328.github.io/'+nameForLink+'-AMC10-Practice/'+nameForLink+'_AMC10_%E9%94%99%E9%A2%98%E6%9C%AC.html';
+    } else {
+      amcCard.style.display = 'none';
+    }
 
     document.getElementById('intake').style.display='none';
     document.getElementById('report').style.display='block';
