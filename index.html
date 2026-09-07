@@ -489,30 +489,37 @@
       else if(/sciences?|science/i.test(sln)) key = 'science';
       else if(/individuals and societies|humanities/i.test(sln)) key = 'humanities';
       if(!key) continue;
-      // 找到科目头后，提取后续行的 A/B/C/D 分数
-      // PDF格式：G7 Chinese A: Language and Literature | A B C D | 6 | Camilla Tian 5 6 7 7
+      
+      // PDF.js 提取的实际格式：
+      // A B C D (表头，在 Achievement Levels 下面)
+      // G7 Chinese A: Language and Literature (科目名)
+      // 6 (Final)
+      // 5 6 7 7 (ABCD分数)
+      // Camilla Tian (老师名)
+      // A B C D (下一科的表头)
+      
       var abMap = {A:null, B:null, C:null, D:null};
       var fg = null;
-      // 提取科目头后面 20 行的内容用于调试
-      var debugBlock = lines.slice(si, Math.min(si+20, lines.length)).join(' | ');
-      allDebugLines.push('提取 ' + key + ' at line ' + si + ': ' + debugBlock.substring(0,200));
+      // 提取科目头后面 25 行的内容用于调试
+      var debugBlock = lines.slice(si, Math.min(si+25, lines.length)).join(' | ');
+      allDebugLines.push('提取 ' + key + ' at line ' + si + ': ' + debugBlock.substring(0,300));
       console.log('找到科目 ' + key + ' at line ' + si + ': ' + debugBlock);
       
-      // 策略：先找 "A B C D" 行，然后下一行是 Final，再下一行是 "老师名 ABCD分数"
+      // 策略：从科目行开始，向后找 "A B C D" 行，然后找 Final，再找 ABCD
       var foundABCRow = -1;
-      for(var sj=si; sj<Math.min(si+25, lines.length); sj++){
+      for(var sj=si; sj<Math.min(si+15, lines.length); sj++){
         var tl = lines[sj].trim();
-        // 找 A B C D 这一行（可能有多个空格）
+        // 找 A B C D 这一行（可能在科目前面或后面）
         if(/^A\s+B\s+C\s+D$/i.test(tl) || /^A\s{2,}B\s{2,}C\s{2,}D$/i.test(tl)){
           foundABCRow = sj;
-          // 下一行是 Final 分数
-          if(sj+1 < lines.length){
-            var fnVal = parseInt(lines[sj+1].trim(),10);
-            if(fnVal >= 1 && fnVal <= 7) fg = fnVal;
+          // 下一行是 Final 分数（或者再下一行）
+          for(var sf=sj+1; sf<sj+4 && sf<lines.length; sf++){
+            var fnVal = parseInt(lines[sf].trim(),10);
+            if(fnVal >= 1 && fnVal <= 7){ fg = fnVal; break; }
           }
-          // 再下一行是 "老师名 A分数 B分数 C分数 D分数"
-          if(sj+2 < lines.length){
-            var scoreLine = lines[sj+2].trim();
+          // 再后面找 ABCD 分数（格式：5 6 7 7 或 Camilla Tian 5 6 7 7）
+          for(var sa=sj+2; sa<sj+6 && sa<lines.length; sa++){
+            var scoreLine = lines[sa].trim();
             // 匹配末尾的4个数字（ABCD分数）
             var scores = scoreLine.match(/(\d{1,2})\s+(\d{1,2})\s+(\d{1,2})\s+(\d{1,2})$/);
             if(scores){
@@ -520,6 +527,16 @@
               abMap.B = parseInt(scores[2],10);
               abMap.C = parseInt(scores[3],10);
               abMap.D = parseInt(scores[4],10);
+              break;
+            }
+            // 也匹配 "Camilla Tian 5 6 7 7" 这种格式
+            var scores2 = scoreLine.match(/\d+\s+(\d{1,2})\s+(\d{1,2})\s+(\d{1,2})\s+(\d{1,2})$/);
+            if(scores2){
+              abMap.A = parseInt(scores2[1],10);
+              abMap.B = parseInt(scores2[2],10);
+              abMap.C = parseInt(scores2[3],10);
+              abMap.D = parseInt(scores2[4],10);
+              break;
             }
           }
           break;
