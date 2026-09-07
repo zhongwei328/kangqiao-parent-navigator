@@ -166,7 +166,6 @@
       <label style="margin-top:0">📄 上传学校 PDF 报告（自动抽取辅助填表）</label>
       <input id="pdfFile" type="file" accept="application/pdf" />
       <div id="pdfStatus"></div>
-      <div id="debugInfo" style="margin-top:10px; padding:10px; background:#f5f5f5; border:1px solid #ddd; font-size:12px; display:none; white-space:pre-wrap; max-height:200px; overflow-y:auto;"></div>
       <p class="hint">解析失败也不会阻塞——未识别的字段可手动补。PDF 仅是"加速"，不是必需。</p>
       <details style="margin-top:8px">
         <summary class="muted" style="cursor:pointer;font-size:13px">无 PDF？粘贴报告原文自助识别</summary>
@@ -432,11 +431,6 @@
 
   // ---- 从文本回填表单 ----
   function fillFromText(text){
-    // 调试：显示提取的文本前500字符和包含科目的部分
-    var idx = text.toLowerCase().indexOf('language and literature');
-    var subjectPart = idx >= 0 ? text.substring(Math.max(0, idx-100), idx+300) : '未找到 Language and Literature';
-    document.getElementById('debugInfo').textContent = '【PDF文本前500字符】\n' + text.substring(0,500) + '\n\n【包含科目的部分】\n' + subjectPart + '\n\n【全文长度】' + text.length;
-    document.getElementById('debugInfo').style.display = 'block';
     var count=0, found=[];
     var m;
     m = text.match(/Student\s*Name\s*[:\-]\s*([^\n]*?)(?=\s+Student\s+ID\s*:|$)/i);
@@ -472,16 +466,8 @@
     var scores = {};
     
     // === 新增：直接从学生报告页提取成绩（格式：G7 Chinese A: Language and Literature 后跟 A/B/C/D 分数）===
-    // 调试：记录找到的科目头
-    var foundSubjects = [];
-    var allDebugLines = [];
     for(var si=0; si<lines.length; si++){
       var sln = lines[si].trim();
-      // 调试：记录所有包含科目关键字的行
-      if(/chinese|language and literature|english|language acquisition|mathematics|math|sciences?|science|individuals and societies|humanities/i.test(sln)){
-        foundSubjects.push(si + ': ' + sln.substring(0,50));
-        allDebugLines.push('科目行 #' + si + ': ' + sln.substring(0,80));
-      }
       var key = null;
       if(/chinese|language and literature/i.test(sln)) key = 'chinese';
       else if(/english|language acquisition/i.test(sln)) key = 'english';
@@ -500,10 +486,6 @@
       
       var abMap = {A:null, B:null, C:null, D:null};
       var fg = null;
-      // 提取科目头后面 25 行的内容用于调试
-      var debugBlock = lines.slice(si, Math.min(si+25, lines.length)).join(' | ');
-      allDebugLines.push('提取 ' + key + ' at line ' + si + ': ' + debugBlock.substring(0,300));
-      console.log('找到科目 ' + key + ' at line ' + si + ': ' + debugBlock);
       
       // 策略：从科目行直接提取
       // 格式：科目名 | Final | ABCD分数 | 老师名 | A B C D(下一科)
@@ -570,14 +552,10 @@
         }
       }
       // 只有当找到有效的分数时才保存
-      console.log('科目 ' + key + ' 提取结果: A=' + abMap.A + ' B=' + abMap.B + ' C=' + abMap.C + ' D=' + abMap.D + ' Final=' + fg);
       if(abMap.A!==null || abMap.B!==null || abMap.C!==null || abMap.D!==null || fg!==null){
         scores[key] = {fg:fg, abcd:(abMap.A!==null?[abMap.A,abMap.B,abMap.C,abMap.D]:null)};
       }
     }
-    console.log('找到的科目行: ' + foundSubjects.join('; '));
-    // 将所有调试信息存储起来，稍后显示
-    window._debugSubjectLines = allDebugLines;
     
     // 如果找到了学生报告页的成绩，跳过汇总表的提取
     if(Object.keys(scores).length > 0 && sumStart >= 0){
@@ -663,30 +641,16 @@
         scores[sb.f]={fg: fg, abcd:null, cMap:cMap};
       });
     }
-    // 调试：输出提取的分数到页面和状态栏
-    var debugMsg = '【提取结果】';
-    var foundKeys = Object.keys(scores);
-    debugMsg += '找到科目: ' + foundKeys.join(',') + ';\n';
-    var debugHtml = '=== 提取调试 ===\n';
+    // 提取分数到表单
     SUBJ.forEach(function(s){
       var r=scores[s.key]; 
-      debugMsg += s.name + '=' + (r && r.fg ? r.fg : '?') + (r && r.abcd ? '(ABCD:'+r.abcd.join(',')+')' : '') + '; ';
-      debugHtml += s.name + ': Final=' + (r && r.fg ? r.fg : '?') + ', ABCD=' + (r && r.abcd ? r.abcd.join(',') : '无') + '\n';
-      console.log(s.name + ' (key=' + s.key + '):', r);
       if(!r) return;
       if(r.fg!=null){ setV('subject_score_'+s.key, r.fg); count++; found.push(s.name+'成绩'); }
       var ab = (r.abcd)? r.abcd : (r.cMap? [r.cMap.A,r.cMap.B,r.cMap.C,r.cMap.D] : null);
       if(ab){ ['A','B','C','D'].forEach(function(K,ki){ if(ab[ki]!=null) setV('subject_'+K.toLowerCase()+'_'+s.key, ab[ki]); }); count++; found.push(s.name+'四标准'); }
     });
-    // 在页面显示调试信息
-    var debugEl = document.getElementById('debugInfo');
-    if(debugEl){ 
-      var subjectLines = window._debugSubjectLines || [];
-      debugEl.textContent = '=== 原始文本中的科目行 ===\n' + subjectLines.join('\n') + '\n\n' + debugHtml; 
-      debugEl.style.display = 'block'; 
-    }
-    // 在状态栏显示调试信息
-    setStatus(debugMsg + ' | ' + (count>0 ? '已识别'+count+'项：'+found.join('、') : '未识别'), count>0?'ok':'warn');
+    // 在状态栏显示结果
+    setStatus((count>0 ? '✅ 已识别 '+count+' 项：'+found.join('、')+'（未识别的字段可手动补）' : '未能自动匹配字段，请手动填写，或用下方"粘贴原文重新识别"。'), count>0?'ok':'warn');
 
     // ---- 老师评语：跨格式通用抓取（不再依赖 G7/Phase3；捕获所有 Comments 块并关联最近科目）----
     var commentsAll=[];
