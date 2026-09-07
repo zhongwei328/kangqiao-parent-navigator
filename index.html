@@ -556,8 +556,8 @@
         }
         }
       }
-      // 只有当找到有效的分数时才保存
-      if(abMap.A!==null || abMap.B!==null || abMap.C!==null || abMap.D!==null || fg!==null){
+      // 只有当找到有效的分数时才保存，且只保留第一次找到的
+      if((abMap.A!==null || abMap.B!==null || abMap.C!==null || abMap.D!==null || fg!==null) && !scores[key]){
         scores[key] = {fg:fg, abcd:(abMap.A!==null?[abMap.A,abMap.B,abMap.C,abMap.D]:null)};
       }
     }
