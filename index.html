@@ -930,6 +930,7 @@
     return '<span class="crit '+(cls?('tag '+cls):'muted')+'">'+c.L+c.n+'</span>';
   }
   function ibDiag(p){
+    console.log('ibDiag接收到的p.subjects:', JSON.stringify(p.subjects));
     var html='<ul class="diag">'; var scores=[];
     SUBJ.forEach(function(s){
       var subj=p.subjects[s.key];
