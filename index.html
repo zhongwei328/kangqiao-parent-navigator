@@ -494,7 +494,6 @@
       
       // 方法1：直接从科目行后面提取
       // si+1 应该是 Final，si+2 应该是 ABCD
-      console.log('科目 '+key+' 行'+si+': si+1='+lines[si+1]+', si+2='+lines[si+2]);
       if(si+1 < lines.length){
         var line1 = lines[si+1].trim();
         var fnVal = parseInt(line1,10);
@@ -505,11 +504,9 @@
       // 尝试多行查找 ABCD 分数
       for(var tryLine=si+1; tryLine<si+5 && tryLine<lines.length; tryLine++){
         var lineX = lines[tryLine].trim();
-        console.log('科目 '+key+' 尝试行'+tryLine+': "'+lineX+'"');
         // 匹配 "5 6 7 7" 格式
         var abMatch = lineX.match(/(\d{1,2})\s+(\d{1,2})\s+(\d{1,2})\s+(\d{1,2})/);
         if(abMatch){
-          console.log('科目 '+key+' 匹配成功! abMatch:', abMatch);
           abMap.A = parseInt(abMatch[1],10);
           abMap.B = parseInt(abMatch[2],10);
           abMap.C = parseInt(abMatch[3],10);
@@ -557,13 +554,8 @@
         }
       }
       // 只有当找到有效的分数时才保存，且只保留第一次找到的
-      if(key === 'science'){
-        console.log('DEBUG science: fg='+fg+', abMap.A='+abMap.A+', abMap.B='+abMap.B+', abMap.C='+abMap.C+', abMap.D='+abMap.D+', scores[science]='+JSON.stringify(scores['science']));
-      }
-      console.log('科目 '+key+' 准备保存: fg='+fg+', abMap='+JSON.stringify(abMap)+', scores[key]已存在='+(scores[key]?'是':'否'));
       if((abMap.A!==null || abMap.B!==null || abMap.C!==null || abMap.D!==null || fg!==null) && !scores[key]){
         scores[key] = {fg:fg, abcd:(abMap.A!==null?[abMap.A,abMap.B,abMap.C,abMap.D]:null)};
-        console.log('科目 '+key+' 已保存: '+JSON.stringify(scores[key]));
       }
     }
     
@@ -652,11 +644,9 @@
       });
     }
     // 调试：显示提取到的分数
-    console.log('提取到的分数:', JSON.stringify(scores));
     // 提取分数到表单
     SUBJ.forEach(function(s){
       var r=scores[s.key]; 
-      console.log('科目 '+s.key+':', r);
       if(!r) return;
       if(r.fg!=null){ setV('subject_score_'+s.key, r.fg); count++; found.push(s.name+'成绩'); }
       var ab = (r.abcd)? r.abcd : (r.cMap? [r.cMap.A,r.cMap.B,r.cMap.C,r.cMap.D] : null);
@@ -937,7 +927,6 @@
     return '<span class="crit '+(cls?('tag '+cls):'muted')+'">'+c.L+c.n+'</span>';
   }
   function ibDiag(p){
-    console.log('ibDiag接收到的p.subjects:', JSON.stringify(p.subjects));
     var html='<ul class="diag">'; var scores=[];
     SUBJ.forEach(function(s){
       var subj=p.subjects[s.key];
@@ -1600,8 +1589,31 @@
     h += '<div class="swot-col ok"><div class="swot-h">🌟 主要优点</div><ul class="diag">';
     h += str.length ? str.slice(0,5).map(function(x){return '<li>'+escapeHtml(x)+'</li>';}).join('') : '<li class="muted">暂无显著高分项</li>';
     h += '</ul></div>';
-    h += '<div class="swot-col warn"><div class="swot-h">🔧 主要待改进点</div><ul class="diag">';
-    h += imp.length ? imp.map(function(x){return '<li>'+escapeHtml(x)+'</li>';}).join('') : '<li class="muted">分数无弱项</li>';
+    h += '<div class="swot-col warn"><div class="swot-h">🔧 主要待改进点（弱项 Top 3）</div><ul class="diag">';
+    // 显示最弱的3个学科（按Final分数排序，分数相同的按ABCD弱项数排序）
+    var weakSubjects = SUBJ.filter(function(s){
+      var subj = p.subjects && p.subjects[s.key];
+      if(!subj) return false;
+      var cl = critList(subj);
+      var hasWeakScore = subj.score != null && subj.score <= 5;
+      var hasWeakCrit = cl.some(function(c){ return c.n <= 6; });
+      return hasWeakScore || hasWeakCrit;
+    }).map(function(s){
+      var subj = p.subjects[s.key];
+      var cl = critList(subj);
+      var weakCritCount = cl.filter(function(c){ return c.n <= 6; }).length;
+      return {name: s.name, score: subj.score||999, weakCritCount: weakCritCount};
+    }).sort(function(a,b){
+      if(a.score !== b.score) return b.score - a.score;
+      return b.weakCritCount - a.weakCritCount;
+    }).slice(0,3);
+    var weakHtml = weakSubjects.map(function(w){
+      var subj = p.subjects[SUBJ.find(function(s){return s.name === w.name;}).key];
+      var cl = critList(subj);
+      var weakChips = cl.filter(function(c){return c.n<=6;}).map(function(c){return c.L+c.n;}).join(', ');
+      return w.name + (w.score <= 7 ? ' Final '+w.score+'/7' : '') + (weakChips ? ' ['+weakChips+']' : '');
+    });
+    h += weakHtml.length ? weakHtml.map(function(x){return '<li>'+escapeHtml(x)+'</li>';}).join('') : '<li class="muted">暂无弱项</li>';
     h += '</ul></div>';
     h += '</div>';
     return h;
@@ -1848,19 +1860,12 @@
     document.getElementById('rActions').innerHTML = actionsHtml;
     document.getElementById('rRoadmap').innerHTML = roadmap(p);
 
-    // 动态显示 AMC 错题本：仅当有数学竞赛或特定学生（如 Henry）时显示
+    // 动态显示 AMC 错题本：对所有学生显示
     var amcCard = document.getElementById('amcCard');
-    var hasMathComp = p.competitions && p.competitions.some(function(c){ return /amc|数学|math/i.test(c.name); });
-    var isHenry = /henry|亨利|牟海天/i.test(p.name||'');
-    if(hasMathComp || isHenry){
-      amcCard.style.display = 'block';
-      // 动态更新链接中的名字
-      var amcLink = document.getElementById('amcLink');
-      var nameForLink = (p.name||'Student').replace(/\s+/g,'_');
-      amcLink.href = 'https://zhongwei328.github.io/'+nameForLink+'-AMC10-Practice/'+nameForLink+'_AMC10_%E9%94%99%E9%A2%98%E6%9C%AC.html';
-    } else {
-      amcCard.style.display = 'none';
-    }
+    var nameForLink = (p.name||'Student').replace(/\s+/g,'_');
+    amcCard.style.display = 'block';
+    var amcLink = document.getElementById('amcLink');
+    amcLink.href = 'https://zhongwei328.github.io/'+nameForLink+'-AMC10-Practice/'+nameForLink+'_AMC10_%E9%94%99%E9%A2%98%E6%9C%AC.html';
 
     document.getElementById('intake').style.display='none';
     document.getElementById('report').style.display='block';
