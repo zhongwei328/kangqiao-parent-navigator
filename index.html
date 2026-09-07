@@ -329,7 +329,7 @@
   </section>
 </div>
 
-<script src="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
 <script>
 // ===APP_START===
   (function(){
@@ -408,7 +408,7 @@
   async function extractPdfText(file){
     if(typeof pdfjsLib==='undefined') throw new Error('PDF 组件未加载（请检查网络后刷新）');
     pdfjsLib.GlobalWorkerOptions.workerSrc =
-      'https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
     var buf = await file.arrayBuffer();
     var pdf = await pdfjsLib.getDocument({data:buf}).promise;
     var lines = [];
