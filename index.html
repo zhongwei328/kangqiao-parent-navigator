@@ -641,9 +641,12 @@
         scores[sb.f]={fg: fg, abcd:null, cMap:cMap};
       });
     }
+    // 调试：显示提取到的分数
+    console.log('提取到的分数:', JSON.stringify(scores));
     // 提取分数到表单
     SUBJ.forEach(function(s){
       var r=scores[s.key]; 
+      console.log('科目 '+s.key+':', r);
       if(!r) return;
       if(r.fg!=null){ setV('subject_score_'+s.key, r.fg); count++; found.push(s.name+'成绩'); }
       var ab = (r.abcd)? r.abcd : (r.cMap? [r.cMap.A,r.cMap.B,r.cMap.C,r.cMap.D] : null);
