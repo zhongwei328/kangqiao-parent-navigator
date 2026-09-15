@@ -136,6 +136,9 @@ ul.actions li .links a{margin-right:8px}
     #secPractice{display:none !important}
   }
   .ai-err{margin-top:10px; padding:10px 12px; border:1px solid #f0b4b4; background:#fff5f5; border-radius:10px; color:#9b2c2c; font-size:13px; line-height:1.6}
+  .ai-student-info{margin:12px 0; padding:12px; background:#f0f7ff; border-radius:10px; font-size:12px; line-height:1.8; border-left:4px solid #3b82f6}
+  .ai-student-info b{color:#1e40af; display:block; margin-bottom:6px}
+  .ai-student-info span{display:inline-block; margin-right:12px; margin-bottom:4px; color:#374151}
   .direction-fit{border-left:4px solid #3b82f6}
   .ai-err b{color:#7a1f1f}
   .ai-err .muted{color:#a35; font-size:12px}
@@ -1855,7 +1858,24 @@ ul.actions li .links a{margin-right:8px}
     var aiOk = !!(ai && !ai.error);
     var aiFailed = !!(key && !aiOk);
     var aiErr = (ai && ai.error) ? ai.error : '';
-    var conclHtml = aiOk ? ('<div class="ai-badge">🤖 MiniMax 实时诊断</div>'+aiConclusionHtml(ai)) : '<p>'+conclusion(p, diag.avg)+'</p>';
+    // 学生基本信息 HTML
+    var studentInfoHtml = '<div class="ai-student-info"><b>学生基本信息：</b>'+
+      '<span>姓名：'+(p.name||'无输入')+'</span>'+
+      '<span>年级：'+(p.grade||'无输入')+'</span>'+
+      '<span>国籍：'+(p.nationality||'无输入')+'</span>'+
+      '<span>父母海外身份：'+(p.parents||'无输入')+'</span>'+
+      '<span>升学方向：'+(p.direction&&p.direction.length?p.direction.join('、'):'无输入')+'</span>'+
+      '<span>目标专业：'+(p.major||'无输入')+'</span>'+
+      '<span>申请年级：'+(p.applyGrade||'无输入')+'</span>'+
+      '<span>MBTI：'+(p.mbti||'无输入')+'</span>'+
+      '<span>Holland：'+(p.holland||'无输入')+'</span>'+
+      '<span>Service：'+(p.saCount||'无输入')+'/7</span>'+
+      '<span>托福Junior：'+(p.toeflJunior||'无输入')+'</span>'+
+      '<span>托福：'+(p.toefl||'无输入')+'</span>'+
+      '<span>雅思：'+(p.ielts||'无输入')+'</span>'+
+      '<span>SAT：'+(p.sat||'无输入')+'</span>'+
+      '</div>';
+    var conclHtml = aiOk ? ('<div class="ai-badge">🤖 MiniMax 实时诊断</div>'+studentInfoHtml+aiConclusionHtml(ai)) : '<p>'+conclusion(p, diag.avg)+'</p>';
     document.getElementById('kpi').innerHTML =
       '<div class="box"><b>'+(diag.avg)+'</b><span>IB 平均 Final Grade</span></div>'+
       '<div class="box"><b>'+SUBJ.filter(function(s){return p.subjects[s.key].score!=null;}).length+'/5</b><span>已录学科</span></div>'+
