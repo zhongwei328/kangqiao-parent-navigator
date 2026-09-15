@@ -108,7 +108,7 @@
   ul.actions li .tag.urg-高{background:#fef2f2; color:#dc2626}
   ul.actions li .tag.urg-中{background:#fefce8; color:#a16207}
   ul.actions li .tag.urg-低{background:#f0fdf4; color:#15803d}
-  ul.actions li .source{display:block; font-size:12px; color:var(--muted); margin-top:3px; padding-left:2px}
+  ul.actions li .source{display:none}
 ul.actions li .links{display:block; font-size:12px; margin-top:2px; padding-left:2px}
 ul.actions li .links a{margin-right:8px}
   ul.actions li .source a{color:var(--accent); text-decoration:underline}
@@ -1151,14 +1151,15 @@ ul.actions li .links a{margin-right:8px}
     var scopeTxt = it.scope==='校外' ? '🌐 校外' : '🏫 校内';
     var links = (it.links && it.links.length) ? it.links : (it.link ? [it.link] : []);
     var linkHtml = links.length ? '<span class="links">链接：' + links.map(function(l){ return '<a href="'+l.url+'" target="_blank" rel="noopener">'+escapeHtml(l.label)+'</a>'; }).join(' · ') + '</span>' : '';
+    // 校外无可靠链接时显示提示
+    var noLinkTip = (it.scope==='校外' && !links.length) ? '<span class="links muted">链接：暂无可靠数据，建议家长自行搜索当地靠谱培训机构</span>' : '';
     var h = '<li>'+
       '<span class="prio">P'+(idx+1)+'</span>'+
       '<b>'+escapeHtml(it.title)+'</b>'+
       ' <span class="scope '+scopeCls+'">'+scopeTxt+'</span>'+
       prioBadge(it.imp, it.urg)+
       (it.reason ? '<span class="reason">原因：'+escapeHtml(it.reason)+'</span>' : '')+
-      (it.source ? '<span class="source">📌 来源：'+escapeHtml(it.source)+'</span>' : '')+
-      linkHtml;
+      linkHtml + noLinkTip;
     return h + '</li>';
   }
   function renderActions(items, note){
