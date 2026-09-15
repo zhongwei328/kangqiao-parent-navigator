@@ -92,6 +92,8 @@
   .swot-h{font-weight:700; font-size:14px; margin-bottom:6px}
   .swot-col ul{margin:0; padding-left:18px}
   .swot-col li{margin:5px 0; font-size:14px}
+  .swot-col li.teacher-imp{list-style:none; margin-left:-10px; padding:8px 10px; background:#fff3e0; border-radius:8px; border-left:3px solid #ff9800}
+  .swot-col li.teacher-imp .imp-header{font-weight:600; color:#e65100; display:block; margin-bottom:4px}
   @media(max-width:480px){ .swot2{grid-template-columns:1fr} }
   ul.actions{margin:6px 0 0; padding-left:20px}
   ul.actions li{margin:9px 0; font-size:14px; line-height:1.45}
@@ -1589,31 +1591,40 @@
     h += '<div class="swot-col ok"><div class="swot-h">🌟 主要优点</div><ul class="diag">';
     h += str.length ? str.slice(0,5).map(function(x){return '<li>'+escapeHtml(x)+'</li>';}).join('') : '<li class="muted">暂无显著高分项</li>';
     h += '</ul></div>';
-    h += '<div class="swot-col warn"><div class="swot-h">🔧 主要待改进点（弱项 Top 3）</div><ul class="diag">';
-    // 显示最弱的3个学科（按Final分数排序，分数相同的按ABCD弱项数排序）
-    var weakSubjects = SUBJ.filter(function(s){
-      var subj = p.subjects && p.subjects[s.key];
+    h += '<div class="swot-col warn"><div class="swot-h">🔧 主要待改进点</div><ul class="diag">';
+    // 1. 先显示老师评语中的改进点（最有共性的3个）
+    var s = summarizeComments(p);
+    var teacherImproveHtml = '';
+    if(s && s.improve && s.improve.length > 0){
+      var topImprove = s.improve.slice(0,3).map(function(x){return '✏️ ' + escapeHtml(x);});
+      teacherImproveHtml = '<li class="teacher-imp"><span class="imp-header">老师评语改进点：</span>' + topImprove.join('<br/>') + '</li>';
+    }
+    // 2. 再显示弱项 Top 3（按Final分数排序，分数相同的按ABCD弱项数排序）
+    var weakSubjects = SUBJ.filter(function(si){
+      var subj = p.subjects && p.subjects[si.key];
       if(!subj) return false;
       var cl = critList(subj);
       var hasWeakScore = subj.score != null && subj.score <= 5;
       var hasWeakCrit = cl.some(function(c){ return c.n <= 6; });
       return hasWeakScore || hasWeakCrit;
-    }).map(function(s){
-      var subj = p.subjects[s.key];
+    }).map(function(si){
+      var subj = p.subjects[si.key];
       var cl = critList(subj);
       var weakCritCount = cl.filter(function(c){ return c.n <= 6; }).length;
-      return {name: s.name, score: subj.score||999, weakCritCount: weakCritCount};
+      return {name: si.name, score: subj.score||999, weakCritCount: weakCritCount};
     }).sort(function(a,b){
       if(a.score !== b.score) return b.score - a.score;
       return b.weakCritCount - a.weakCritCount;
     }).slice(0,3);
     var weakHtml = weakSubjects.map(function(w){
-      var subj = p.subjects[SUBJ.find(function(s){return s.name === w.name;}).key];
+      var subj = p.subjects[SUBJ.find(function(si){return si.name === w.name;}).key];
       var cl = critList(subj);
       var weakChips = cl.filter(function(c){return c.n<=6;}).map(function(c){return c.L+c.n;}).join(', ');
-      return w.name + (w.score <= 7 ? ' Final '+w.score+'/7' : '') + (weakChips ? ' ['+weakChips+']' : '');
+      return '📉 ' + w.name + (w.score <= 7 ? ' Final '+w.score+'/7' : '') + (weakChips ? ' ['+weakChips+']' : '');
     });
-    h += weakHtml.length ? weakHtml.map(function(x){return '<li>'+escapeHtml(x)+'</li>';}).join('') : '<li class="muted">暂无弱项</li>';
+    // 合并：老师评语改进点 + 弱项 Top 3
+    var allImproveHtml = teacherImproveHtml + (weakHtml.length ? weakHtml.map(function(x){return '<li>'+escapeHtml(x)+'</li>';}).join('') : '');
+    h += allImproveHtml ? allImproveHtml : '<li class="muted">暂无待改进项</li>';
     h += '</ul></div>';
     h += '</div>';
     return h;
