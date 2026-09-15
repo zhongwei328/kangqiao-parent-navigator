@@ -1671,15 +1671,19 @@ ul.actions li .links a{margin-right:8px}
         sp[s.name]={final:subj.score, weak:weak};
       }
     });
+    // 确保所有基本字段都有值，缺失的显示"无输入"
+    var safeVal = function(v){ return (v===''||v===null||v===undefined) ? '无输入' : v; };
+    var safeArr = function(v){ return (v===''||v===null||v===undefined||(Array.isArray(v)&&v.length===0)) ? ['无输入'] : v; };
     return {
-      name:p.name, grade:p.grade, nationality:p.nationality,
-      direction:p.direction, major:p.major, applyGrade:p.applyGrade,
-      yearsToApply:(p.applyGrade!=null && p.applyGrade!=='') ? (parseInt(p.applyGrade,10) - (p.grade?parseInt(p.grade,10):7)) : null,
-      avgIB:ibDiag(p).avg, subjects:sp, saCount:p.saCount,
-      mbti:p.mbti, holland:(p.holland||'').split(',').filter(Boolean), interestMap:p.interestMap,
-      englishTest:{toeflJunior:p.toeflJunior, toefl:p.toefl, ielts:p.ielts, sat:p.sat},
-      competitions:(p.competitions||[]).map(function(c){return c.name+(c.level?'/'+c.level:'')+(c.res?'/'+c.res:'');}),
-      activities:(p.activities||[]).map(function(a){return a.name+(a.role?'/'+a.role:'')+(a.desc?'/'+a.desc:'');}),
+      name:safeVal(p.name), grade:safeVal(p.grade), nationality:safeVal(p.nationality),
+      parentsOverseas:safeVal(p.parents), // 父母海外身份
+      direction:safeArr(p.direction), major:safeVal(p.major), applyGrade:safeVal(p.applyGrade),
+      yearsToApply:(p.applyGrade!=null && p.applyGrade!=='') ? (parseInt(p.applyGrade,10) - (p.grade?parseInt(p.grade,10):7)) : '无输入',
+      avgIB:ibDiag(p).avg, subjects:sp, saCount:safeVal(p.saCount),
+      mbti:safeVal(p.mbti), holland:safeArr(p.holland), interestMap:p.interestMap||'无输入',
+      englishTest:{toeflJunior:safeVal(p.toeflJunior), toefl:safeVal(p.toefl), ielts:safeVal(p.ielts), sat:safeVal(p.sat)},
+      competitions:safeArr(p.competitions).map(function(c){return c.name+(c.level?'/'+c.level:'')+(c.res?'/'+c.res:'');}),
+      activities:safeArr(p.activities).map(function(a){return a.name+(a.role?'/'+a.role:'')+(a.desc?'/'+a.desc:'');}),
       swot:summarizeComments(p)
     };
   }
