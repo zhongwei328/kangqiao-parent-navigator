@@ -1370,17 +1370,34 @@ ul.actions li .links a{margin-right:8px}
     return items;
   }
   // 实时 AI 行动：若命中已知学科 / SA，自动补上真实信息来源与链接（保证链接准确）
-  function aiMeta(it, p){
+  function aiMeta(it, p, isOut){
     var txt = (it.title||'')+' '+(it.reason||'');
     var meta = { source:'', links:null };
-    for(var i=0;i<SUBJ.length;i++){
-      if(new RegExp(SUBJ[i].re).test(txt)){
-        var subj=p.subjects[SUBJ[i].key];
+    // 校外行动：不添加校内链接，来源只保留档案信息
+    if(isOut){
+      for(var i=0;i<SUBJ.length;i++){
+        if(new RegExp(SUBJ[i].re).test(txt)){
+          var subj=p.subjects[SUBJ[i].key];
+          var ev=[];
+          if(subj && subj.score!=null) ev.push('Final '+subj.score+'/7');
+          if(subj){ var w=critList(subj).filter(function(c){return c.n<=6;}); if(w.length) ev.push('弱项 '+w.map(function(c){return c.L+c.n;}).join('、')); }
+          meta.source='信息来源：IB MYP 成绩单 — '+SUBJ[i].name+(ev.length?('（'+ev.join('；')+'）'):'');
+          meta.links=null; // 校外行动不添加校内链接
+          return meta;
+        }
+      }
+      meta.source='信息来源：MiniMax 实时 AI 基于档案字段诊断';
+      return meta;
+    }
+    // 校内行动：添加校内链接
+    for(var j=0;j<SUBJ.length;j++){
+      if(new RegExp(SUBJ[j].re).test(txt)){
+        var subj=p.subjects[SUBJ[j].key];
         var ev=[];
         if(subj && subj.score!=null) ev.push('Final '+subj.score+'/7');
         if(subj){ var w=critList(subj).filter(function(c){return c.n<=6;}); if(w.length) ev.push('弱项 '+w.map(function(c){return c.L+c.n;}).join('、')); }
-        meta.source='信息来源：IB MYP 成绩单 — '+SUBJ[i].name+(ev.length?('（'+ev.join('；')+'）'):'')+'；建议走康桥校内「'+SUBJ[i].prog+'」';
-        meta.links=[IB_CUR, kqProgLink(SUBJ[i].prog)];
+        meta.source='信息来源：IB MYP 成绩单 — '+SUBJ[j].name+(ev.length?('（'+ev.join('；')+'）'):'')+'；建议走康桥校内「'+SUBJ[j].prog+'」';
+        meta.links=[IB_CUR, kqProgLink(SUBJ[j].prog)];
         return meta;
       }
     }
@@ -1877,15 +1894,16 @@ ul.actions li .links a{margin-right:8px}
     if(aiOk && ai.actions && ai.actions.length){
       var filtered = filterActions(ai.actions, p);
       var norm = filtered.map(function(it){
-        var m = aiMeta(it, p);
+        var isOut = it.scope === '校外';
+        var m = aiMeta(it, p, isOut); // 传入是否校外标识
         return {
           title:it.title, reason:it.reason||'',
-          scope:(it.scope==='校外'?'校外':'校内'),
+          scope:isOut ? '校外' : '校内',
           imp:it.importance||'中', urg:it.urgency||'中',
           source:m.source, links:m.links
         };
       });
-      actionsHtml = renderActions(norm, '以下行动由 MiniMax 实时分析生成，按「重要性 × 紧急性」排序，优先校内资源；每条附信息来源：');
+      actionsHtml = renderActions(norm, '以下行动由 MiniMax 实时分析生成，按「重要性 × 紧急性」排序，每条附信息来源和链接：');
     } else {
       actionsHtml = renderActions(actionsItems(p), '以下行动按「重要性 × 紧急性」排序（重要/紧急双高者最优先），优先校内资源。每条标注触发原因与信息来源：');
     }
