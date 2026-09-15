@@ -1858,7 +1858,7 @@ ul.actions li .links a{margin-right:8px}
     var aiOk = !!(ai && !ai.error);
     var aiFailed = !!(key && !aiOk);
     var aiErr = (ai && ai.error) ? ai.error : '';
-    // 学生基本信息 HTML
+    // 学生基本信息 HTML - 始终显示
     var studentInfoHtml = '<div class="ai-student-info"><b>学生基本信息：</b>'+
       '<span>姓名：'+(p.name||'无输入')+'</span>'+
       '<span>年级：'+(p.grade||'无输入')+'</span>'+
@@ -1875,7 +1875,9 @@ ul.actions li .links a{margin-right:8px}
       '<span>雅思：'+(p.ielts||'无输入')+'</span>'+
       '<span>SAT：'+(p.sat||'无输入')+'</span>'+
       '</div>';
-    var conclHtml = aiOk ? ('<div class="ai-badge">🤖 MiniMax 实时诊断</div>'+studentInfoHtml+aiConclusionHtml(ai)) : '<p>'+conclusion(p, diag.avg)+'</p>';
+    var conclHtml = aiOk ? 
+      ('<div class="ai-badge">🤖 MiniMax 实时诊断</div>'+studentInfoHtml+aiConclusionHtml(ai)) : 
+      ('<div class="ai-badge">🧮 本地诊断</div>'+studentInfoHtml+'<p>'+conclusion(p, diag.avg)+'</p>');
     document.getElementById('kpi').innerHTML =
       '<div class="box"><b>'+(diag.avg)+'</b><span>IB 平均 Final Grade</span></div>'+
       '<div class="box"><b>'+SUBJ.filter(function(s){return p.subjects[s.key].score!=null;}).length+'/5</b><span>已录学科</span></div>'+
