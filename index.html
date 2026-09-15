@@ -1314,6 +1314,17 @@
       });
     }
     // 6) 校外补充课程（校内资源不足时的补充）
+    // 通用校外选项：任何学生都可以考虑校外培训作为补充
+    var hasAnyWeakness = subjWithWeakness.length > 0;
+    var dirLower = dirTxt.toLowerCase();
+    // 6.0 通用校外英语/学科辅导（当有弱项时作为补充选项）
+    if(hasAnyWeakness){
+      add('校外 · 学科一对一辅导（如针对性加强数学/科学等弱项）', '检测到学科存在弱项，除校内资源外，可考虑校外一对一辅导进行针对性强化。',
+        { imp:'中', urg:'中', scope:'校外', source:'信息来源：检测到学科弱项，建议校内+校外双轨并行' });
+    }
+    // 通用英语提升（不管是否达标都提供这个选项）
+    add('校外 · 英语标化冲刺培训（TOEFL/IELTS）', '英语是申请海外院校的核心竞争力，除校内语言中心外，建议考虑校外专业托福/雅思培训机构进行系统备考。',
+      { imp:'中', urg:'中', scope:'校外', source:'信息来源：海外升学方向英语是必考项' });
     // 6.1 美本方向：SAT/ACT 补充
     if(/美Top30|美本/.test(dirTxt) && p.sat){
       var satScore = parseInt(p.sat,10)||0;
