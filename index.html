@@ -1637,7 +1637,7 @@ ul.actions li .links a{margin-right:8px}
       var topImprove = s.improve.slice(0,3).map(function(x){return '✏️ ' + escapeHtml(x);});
       teacherImproveHtml = '<li class="teacher-imp"><span class="imp-header">老师评语改进点：</span>' + topImprove.join('<br/>') + '</li>';
     }
-    // 2. 再显示弱项 Top 3（按Final分数排序，分数相同的按ABCD弱项数排序）
+    // 2. 再显示弱项 Top 3（按Final分数升序排序，分数相同的按ABCD弱项数降序排序）
     var weakSubjects = SUBJ.filter(function(si){
       var subj = p.subjects && p.subjects[si.key];
       if(!subj) return false;
@@ -1651,7 +1651,8 @@ ul.actions li .links a{margin-right:8px}
       var weakCritCount = cl.filter(function(c){ return c.n <= 6; }).length;
       return {name: si.name, score: subj.score||999, weakCritCount: weakCritCount};
     }).sort(function(a,b){
-      if(a.score !== b.score) return b.score - a.score;
+      // 按Final分数升序（最低放第一），分数相同则弱项多的放前面
+      if(a.score !== b.score) return a.score - b.score;
       return b.weakCritCount - a.weakCritCount;
     }).slice(0,3);
     var weakHtml = weakSubjects.map(function(w){
