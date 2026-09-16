@@ -1652,7 +1652,7 @@ ul.actions li .links a{margin-right:8px}
       // 按Final分数升序（最低放第一），分数相同则弱项多的放前面
       if(a.score !== b.score) return a.score - b.score;
       return b.weakCritCount - a.weakCritCount;
-    }); // 全部显示，不限制3个
+    }).slice(0,3); // 只显示最弱的3个
     // 用 key 来查找，而不是 name，避免名称不匹配问题
     var weakHtml = weakSubjects.map(function(w){
       var key = w.key;
