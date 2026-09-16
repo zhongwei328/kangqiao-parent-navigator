@@ -1647,18 +1647,20 @@ ul.actions li .links a{margin-right:8px}
       var cl = critList(subj);
       var weakCritCount = cl.filter(function(c){ return c.n <= 6; }).length;
       var isWeak = (subj.score != null && subj.score <= 5) || weakCritCount > 0;
-      return {name: si.name, score: subj.score||999, weakCritCount: weakCritCount, isWeak: isWeak};
+      return {key: si.key, displayName: si.name, score: subj.score||999, weakCritCount: weakCritCount, isWeak: isWeak};
     }).sort(function(a,b){
       // 按Final分数升序（最低放第一），分数相同则弱项多的放前面
       if(a.score !== b.score) return a.score - b.score;
       return b.weakCritCount - a.weakCritCount;
     }); // 全部显示，不限制3个
+    // 用 key 来查找，而不是 name，避免名称不匹配问题
     var weakHtml = weakSubjects.map(function(w){
-      var subj = p.subjects[SUBJ.find(function(si){return si.name === w.name;}).key];
+      var key = w.key;
+      var subj = p.subjects[key];
       var cl = critList(subj);
       var weakChips = cl.filter(function(c){return c.n<=6;}).map(function(c){return c.L+c.n;}).join(', ');
       var icon = w.isWeak ? '📉' : '📊';
-      return icon + ' ' + w.name + (w.score <= 7 ? ' Final '+w.score+'/7' : '') + (weakChips ? ' ['+weakChips+']' : '');
+      return icon + ' ' + w.displayName + (w.score <= 7 ? ' Final '+w.score+'/7' : '') + (weakChips ? ' ['+weakChips+']' : '');
     });
     // 合并：老师评语改进点 + 弱项 Top 3
     var allImproveHtml = teacherImproveHtml + (weakHtml.length ? weakHtml.map(function(x){return '<li>'+escapeHtml(x)+'</li>';}).join('') : '');
