@@ -1629,7 +1629,7 @@ ul.actions li .links a{margin-right:8px}
     h += '<div class="swot-col ok"><div class="swot-h">🌟 主要优点</div><ul class="diag">';
     h += str.length ? str.slice(0,5).map(function(x){return '<li>'+escapeHtml(x)+'</li>';}).join('') : '<li class="muted">暂无显著高分项</li>';
     h += '</ul></div>';
-    h += '<div class="swot-col warn"><div class="swot-h">🔧 主要待改进点</div><ul class="diag">';
+    h += '<div class="swot-col warn"><div class="swot-h">🔧 待改进学科（按薄弱程度排序）</div><ul class="diag">';
     // 1. 先显示老师评语中的改进点（最有共性的3个）
     var s = summarizeComments(p);
     var teacherImproveHtml = '';
@@ -1637,29 +1637,28 @@ ul.actions li .links a{margin-right:8px}
       var topImprove = s.improve.slice(0,3).map(function(x){return '✏️ ' + escapeHtml(x);});
       teacherImproveHtml = '<li class="teacher-imp"><span class="imp-header">老师评语改进点：</span>' + topImprove.join('<br/>') + '</li>';
     }
-    // 2. 再显示弱项 Top 3（按Final分数升序排序，分数相同的按ABCD弱项数降序排序）
+    // 2. 显示所有有成绩的科目，按Final分数升序排序（最低放第一），分数相同则弱项多的放前面
     var weakSubjects = SUBJ.filter(function(si){
       var subj = p.subjects && p.subjects[si.key];
-      if(!subj) return false;
-      var cl = critList(subj);
-      var hasWeakScore = subj.score != null && subj.score <= 5;
-      var hasWeakCrit = cl.some(function(c){ return c.n <= 6; });
-      return hasWeakScore || hasWeakCrit;
+      // 只要有成绩就显示（不管是否弱）
+      return subj && (subj.score != null);
     }).map(function(si){
       var subj = p.subjects[si.key];
       var cl = critList(subj);
       var weakCritCount = cl.filter(function(c){ return c.n <= 6; }).length;
-      return {name: si.name, score: subj.score||999, weakCritCount: weakCritCount};
+      var isWeak = (subj.score != null && subj.score <= 5) || weakCritCount > 0;
+      return {name: si.name, score: subj.score||999, weakCritCount: weakCritCount, isWeak: isWeak};
     }).sort(function(a,b){
       // 按Final分数升序（最低放第一），分数相同则弱项多的放前面
       if(a.score !== b.score) return a.score - b.score;
       return b.weakCritCount - a.weakCritCount;
-    }).slice(0,3);
+    }); // 全部显示，不限制3个
     var weakHtml = weakSubjects.map(function(w){
       var subj = p.subjects[SUBJ.find(function(si){return si.name === w.name;}).key];
       var cl = critList(subj);
       var weakChips = cl.filter(function(c){return c.n<=6;}).map(function(c){return c.L+c.n;}).join(', ');
-      return '📉 ' + w.name + (w.score <= 7 ? ' Final '+w.score+'/7' : '') + (weakChips ? ' ['+weakChips+']' : '');
+      var icon = w.isWeak ? '📉' : '📊';
+      return icon + ' ' + w.name + (w.score <= 7 ? ' Final '+w.score+'/7' : '') + (weakChips ? ' ['+weakChips+']' : '');
     });
     // 合并：老师评语改进点 + 弱项 Top 3
     var allImproveHtml = teacherImproveHtml + (weakHtml.length ? weakHtml.map(function(x){return '<li>'+escapeHtml(x)+'</li>';}).join('') : '');
