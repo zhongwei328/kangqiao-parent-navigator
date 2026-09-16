@@ -1169,7 +1169,12 @@ ul.actions li .links a{margin-right:8px}
     return h + '</li>';
   }
   function renderActions(items, note){
-    items.sort(function(a,b){ return prioScore(b.imp,b.urg) - prioScore(a.imp,a.urg); }); // 重要×紧急 降序
+    // 先按学科弱项顺序排序（order小的在前），再按重要×紧急排序
+    items.sort(function(a,b){ 
+      var orderDiff = (a.order||999) - (b.order||999);
+      if(orderDiff !== 0) return orderDiff;
+      return prioScore(b.imp,b.urg) - prioScore(a.imp,a.urg); 
+    });
     return '<p class="muted">'+note+'</p><ul class="actions">'+
       items.map(function(it,i){ return actionItemHtml(it,i); }).join('') + '</ul>';
   }
@@ -1190,13 +1195,14 @@ ul.actions li .links a{margin-right:8px}
       }
       return false;
     }
-    function add(title, reason, meta){
+    function add(title, reason, meta, order){
       meta = meta||{};
       items.push({
         title:title, reason:reason,
         imp: meta.imp||'中', urg: meta.urg||'中',
         scope: meta.scope||'校内',
-        source: meta.source||'', links: meta.links||null
+        source: meta.source||'', links: meta.links||null,
+        order: order !== undefined ? order : 999 // 默认排最后
       });
     }
     // 0) 老师评语改进建议（从评语中提取具体改进点）
@@ -1275,8 +1281,8 @@ ul.actions li .links a{margin-right:8px}
     });
     // 按弱项数量降序排序（弱项多的排前面）
     subjWithWeakness.sort(function(a,b){ return b.weakCount - a.weakCount; });
-    // 全部添加，不限制数量
-    subjWithWeakness.forEach(function(item){
+    // 全部添加，不限制数量，使用索引作为排序依据
+    subjWithWeakness.forEach(function(item, idx){
       var s = item.s, subj = item.subj, weak = item.weak;
       var focus = weak.length
         ? '重点提升 '+weak.map(function(c){ return c.L+'（'+critName(s.key,c.L)+'）'+c.n+'/8'; }).join('、')
@@ -1290,7 +1296,8 @@ ul.actions li .links a{margin-right:8px}
         '基于档案录入：'+ev+' —— 对应校内课程 '+s.name+'课（'+s.en+'）需针对性补强，建议走康桥校内「'+s.prog+'」。',
         { imp: isCore?'高':'中', urg: '中', scope:'校内',
           source:'信息来源：IB MYP 成绩单录入 — '+ev,
-          links:[IB_CUR, kqProgLink(s.prog)] });
+          links:[IB_CUR, kqProgLink(s.prog)] },
+        idx); // 使用索引作为排序依据
     });
     // 2) 升学方向联动（标化缺失）
     var dirTxt = (p.direction||[]).join('、');
