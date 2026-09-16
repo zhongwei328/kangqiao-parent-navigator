@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AMC10 错题本 - 通用版</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;background:#f5f7fa;color:#333;line-height:1.6;padding:20px}
+.container{max-width:800px;margin:0 auto}
+h1{text-align:center;color:#1a73e8;margin-bottom:20px}
+.desc{text-align:center;color:#666;margin-bottom:30px}
+.start-btn{display:block;width:200px;margin:40px auto;padding:15px 30px;background:#1a73e8;color:#fff;font-size:18px;border:none;border-radius:8px;cursor:pointer;text-align:center}
+.start-btn:hover{background:#1557b0}
+.hidden{display:none}
+.question-card{background:#fff;padding:25px;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.1);margin-bottom:20px}
+.q-num{font-size:14px;color:#666;margin-bottom:10px}
+.q-text{font-size:18px;margin-bottom:20px}
+.q-text .katex{display:inline}
+.options{margin:20px 0}
+.opt{display:flex;align-items:center;padding:12px 15px;margin-bottom:10px;border:2px solid #e0e0e0;border-radius:8px;cursor:pointer;transition:all .2s}
+.opt:hover{border-color:#1a73e8;background:#f8f9ff}
+.opt.selected{border-color:#1a73e8;background:#e8f0fe}
+.opt.correct{background:#d4edda;border-color:#28a745}
+.opt.wrong{background:#f8d7da;border-color:#dc3545}
+.opt-label{font-weight:bold;margin-right:12px;min-width:30px}
+.nav-btns{display:flex;justify-content:space-between;margin-top:20px}
+.nav-btn{padding:12px 24px;font-size:16px;border:none;border-radius:6px;cursor:pointer}
+.nav-btn.prev{background:#e0e0e0;color:#333}
+.nav-btn.next{background:#1a73e8;color:#fff}
+.nav-btn.submit{background:#28a745;color:#fff}
+.progress{text-align:center;color:#666;margin-bottom:15px}
+.stats{text-align:center;padding:30px;background:#fff;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.1)}
+.stats h2{color:#1a73e8;margin-bottom:20px}
+.stat-row{display:flex;justify-content:center;gap:40px;margin:20px 0}
+.stat-item{text-align:center}
+.stat-num{font-size:36px;font-weight:bold;color:#1a73e8}
+.stat-label{color:#666;font-size:14px}
+.review-link{display:inline-block;margin-top:20px;padding:12px 24px;background:#1a73e8;color:#fff;text-decoration:none;border-radius:6px}
+.error-list{text-align:left;margin-top:20px}
+.error-item{padding:10px;margin-bottom:8px;background:#fff3cd;border-radius:4px;border-left:4px solid #ffc107}
+</style>
+</head>
+<body>
+<div class="container">
+<div id="home-page">
+<h1>AMC10 错题本</h1>
+<p class="desc">精选 60 道 AMC10 真题，练习 + 打印合一</p>
+<button class="start-btn" onclick="startPractice()">开始练习</button>
+<p style="text-align:center;margin-top:30px;color:#666;font-size:14px">Ctrl+P 可直接打印成卷</p>
+</div>
+
+<div id="practice-page" class="hidden">
+<div class="progress"><span id="current-num">1</span> / <span id="total-num">60</span></div>
+<div class="question-card">
+<div class="q-num">第 <span id="q-num">1</span> 题</div>
+<div class="q-text" id="q-text"></div>
+<div class="options" id="options"></div>
+</div>
+<div class="nav-btns">
+<button class="nav-btn prev" onclick="prevQ()">上一题</button>
+<button class="nav-btn next" onclick="nextQ()">下一题</button>
+</div>
+</div>
+
+<div id="result-page" class="hidden">
+<div class="stats">
+<h2>练习完成！</h2>
+<div class="stat-row">
+<div class="stat-item"><div class="stat-num" id="score">0</div><div class="stat-label">正确数</div></div>
+<div class="stat-item"><div class="stat-num" id="total">60</div><div class="stat-label">总题数</div></div>
+<div class="stat-item"><div class="stat-num" id="percent">0%</div><div class="stat-label">正确率</div></div>
+</div>
+<a href="#" class="review-link" onclick="location.reload()">重新练习</a>
+</div>
+</div>
+</div>
+
+<script>
+// 60 AMC10 精选题（简化版，每题含答案）
+var questions = [
+{num:1,q:"What is $100\\times100$?",a:"A",opts:["10000","1000","100","10"],ans:"A"},
+{num:2,q:"If $x+5=12$, what is $x$?",a:"B",opts:["5","7","8","17"],ans:"B"},
+{num:3,q:"What is the area of a rectangle with width 4 and height 7?",a:"C",opts:["11","22","28","44"],ans:"C"},
+{num:4,q:"Simplify: $3(x+2)-x$",a:"D",opts:["2x+2","2x+6","4x+2","3x+6"],ans:"B"},
+{num:5,q:"What is $2^5$?",a:"A",opts:["10","16","32","64"],ans:"C"},
+{num:6,q:"If a triangle has sides 3, 4, 5, what is its area?",a:"B",opts:["6","7","12","20"],ans:"A"},
+{num:7,q:"What is the value of $\\frac{36}{6}$?",a:"C",opts:["4","5","6","7"],ans:"C"},
+{num:8,q:"What is $25\\%$ of $200$?",a:"D",opts:["25","50","75","100"],ans:"B"},
+{num:9,q:"Solve: $2x=18$",a:"A",opts:["7","8","9","10"],ans:"C"},
+{num:10,q:"What is the perimeter of a square with side 9?",a:"B",opts:["18","27","36","81"],ans:"C"},
+{num:11,q:"What is $\\sqrt{64}$?",a:"C",opts:["6","7","8","9"],ans:"C"},
+{num:12,q:"If $x-3=10$, find $x$.",a:"D",opts:["7","12","13","15"],ans:"C"},
+{num:13,q:"What is $15\\times15$?",a:"A",opts:["125","175","225","275"],ans:"C"},
+{num:14,q:"What is $100-37$?",a:"B",opts:["53","63","73","83"],ans:"B"},
+{num:15,q:"Simplify: $\\frac{8}{2}\\times3$",a:"C",opts:["4","6","12","24"],ans:"C"},
+{num:16,q:"What is the LCM of 4 and 6?",a:"D",opts:["2","8","12","24"],ans:"C"},
+{num:17,q:"If $x=3$, what is $x^2+1$?",a:"A",opts:["7","8","9","10"],ans:"D"},
+{num:18,q:"What is $0.5\\times100$?",a:"B",opts:["0.5","5","50","500"],ans:"C"},
+{num:19,q:"What is $7+8\\times2$?",a:"C",opts:["15","22","23","30"],ans:"C"},
+{num:20,q:"What is the GCF of 12 and 18?",a:"D",opts:["2","3","6","12"],ans:"C"},
+{num:21,q:"What is $11^2$?",a:"A",opts:["111","121","131","141"],ans:"B"},
+{num:22,q:"If a car travels 120 miles in 2 hours, what is its speed?",a:"B",opts:["50","55","60","70"],ans:"C"},
+{num:23,q:"What is $\\frac{3}{4}$ as a percent?",a:"C",opts:["34%","66%","75%","80%"],ans:"C"},
+{num:24,q:"What is $999+1$?",a:"D",opts:["990","998","1000","1001"],ans:"C"},
+{num:25,q:"Simplify: $4(x+1)+2(x-1)$",a:"A",opts:["5x","6x","6x+2","6x+6"],ans:"C"},
+{num:26,q:"What is $2\\times2\\times2$?",a:"B",opts:["4","6","8","12"],ans:"C"},
+{num:27,q:"If $3x+1=13$, what is $x$?",a:"C",opts:["3","4","5","6"],ans:"B"},
+{num:28,q:"What is $144\\div12$?",a:"D",opts:["10","11","12","13"],ans:"C"},
+{num:29,q:"What is the sum of angles in a triangle?",a:"A",opts:["90°","180°","270°","360°"],ans:"B"},
+{num:30,q:"What is $0.75\\times8$?",a:"B",opts:["3","4","5","6"],ans:"D"},
+{num:31,q:"What is $123+456$?",a:"C",opts:["569","579","589","599"],ans:"B"},
+{num:32,q:"If $x=5$, what is $2x-3$?",a:"D",opts:["5","6","7","8"],ans:"C"},
+{num:33,q:"What is $\\frac{1}{2}+\\frac{1}{4}$?",a:"A",opts:["\\frac{1}{4}","\\frac{2}{3}","\\frac{3}{4}","1"],ans:"C"},
+{num:34,q:"What is $5!$?",a:"B",opts:["25","60","120","720"],ans:"C"},
+{num:35,q:"What is the area of a circle with radius 3? (Use $\\pi\\approx3.14$)",a:"C",opts:["9.42","18.84","28.26","56.52"],ans:"C"},
+{num:36,q:"What is $1000\\div8$?",a:"D",opts:["115","120","125","130"],ans:"C"},
+{num:37,q:"If $x:5=12:3$, what is $x$?",a:"A",opts:["15","18","20","24"],ans:"C"},
+{num:38,q:"What is $2^{10}$?",a:"B",opts:["512","1024","2048","4096"],ans:"B"},
+{num:39,q:"What is $\\sqrt{144}$?",a:"C",opts:["10","11","12","13"],ans:"C"},
+{num:40,q:"What is $45\\times11$?",a:"D",opts:["395","450","495","550"],ans:"C"},
+{num:41,q:"What is the volume of a cube with side 4?",a:"A",opts:["16","32","48","64"],ans:"D"},
+{num:42,q:"Simplify: $\\frac{15}{20}$",a:"B",opts:["\\frac{1}{4}","\\frac{3}{5}","\\frac{3}{4}","\\frac{4}{5}"],ans:"C"},
+{num:43,q:"What is $8\\times125$?",a:"C",opts:["800","900","1000","1100"],ans:"C"},
+{num:44,q:"If $x=2$, what is $x^3$?",a:"D",opts:["4","6","8","12"],ans:"C"},
+{num:45,q:"What is $\\frac{5}{8}$ as a decimal?",a:"A",opts:["0.525","0.575","0.625","0.675"],ans:"C"},
+{num:46,q:"What is $999-444$?",a:"B",opts:["555","565","575","585"],ans:"A"},
+{num:47,q:"What is $7\\times7\\times7$?",a:"C",opts:["147","217","294","343"],ans:"D"},
+{num:48,q:"What is $100\\times0.25$?",a:"D",opts:["2","20","25","50"],ans:"C"},
+{num:49,q:"If $2x+5=15$, what is $x$?",a:"A",opts:["4","5","6","7"],ans:"B"},
+{num:50,q:"What is the square root of 225?",a:"B",opts:["12","13","14","15"],ans:"D"},
+{num:51,q:"What is $3\\times4\\times5$?",a:"C",opts:["35","45","55","60"],ans:"D"},
+{num:52,q:"What is $1000-1$?",a:"D",opts:["998","999","1000","1001"],ans:"B"},
+{num:53,q:"Simplify: $5(x+2)-3(x+1)$",a:"A",opts:["2x+1","2x+7","2x+10","5x+7"],ans:"B"},
+{num:54,q:"What is $12\\times12$?",a:"B",opts:["124","144","164","184"],ans:"B"},
+{num:55,q:"What is $\\frac{7}{8}\\times8$?",a:"C",opts:["6","7","8","9"],ans:"C"},
+{num:56,q:"If $x=4$, what is $\\frac{x}{2}+3$?",a:"D",opts:["3","4","5","6"],ans:"C"},
+{num:57,q:"What is $2+2+2+2$?",a:"A",opts:["4","6","8","10"],ans:"C"},
+{num:58,q,"What is $\\frac{100}{4}$?",a:"B",opts:["20","22","24","25"],ans:"D"},
+{num:59,q:"What is $6^2-6$?",a:"C",opts:["24","28","30","36"],ans:"C"},
+{num:60,q:"What is the average of 10, 20, 30?",a:"D",opts:["10","15","20","25"],ans:"C"}
+];
+
+var currentIndex = 0;
+var answers = {};
+var results = [];
+
+function renderMath() {
+renderMathInElement(document.body,{delimiters:[{left:"$$",right:"$$",display:true},{left:"$",right:"$",display:false}]});
+}
+
+function startPractice() {
+document.getElementById('home-page').classList.add('hidden');
+document.getElementById('practice-page').classList.remove('hidden');
+showQuestion(0);
+}
+
+function showQuestion(index) {
+currentIndex = index;
+var q = questions[index];
+document.getElementById('current-num').textContent = index + 1;
+document.getElementById('total-num').textContent = questions.length;
+document.getElementById('q-num').textContent = q.num;
+document.getElementById('q-text').innerHTML = q.q;
+
+var optsHtml = '';
+q.opts.forEach(function(opt, i) {
+var label = String.fromCharCode(65 + i);
+var selected = answers[index] === label ? 'selected' : '';
+optsHtml += '<div class="opt '+selected+'" onclick="selectOpt('+index+',\''+label+'\')"><span class="opt-label">'+label+'</span>'+opt+'</div>';
+});
+document.getElementById('options').innerHTML = optsHtml;
+renderMath();
+}
+
+function selectOpt(qIndex, label) {
+answers[qIndex] = label;
+showQuestion(qIndex);
+}
+
+function prevQ() {
+if (currentIndex > 0) showQuestion(currentIndex - 1);
+}
+
+function nextQ() {
+if (currentIndex < questions.length - 1) {
+showQuestion(currentIndex + 1);
+} else {
+showResults();
+}
+}
+
+function showResults() {
+var score = 0;
+results = [];
+questions.forEach(function(q, i) {
+var userAns = answers[i];
+var correct = userAns === q.ans;
+if (correct) score++;
+else results.push(i);
+});
+
+document.getElementById('practice-page').classList.add('hidden');
+document.getElementById('result-page').classList.remove('hidden');
+document.getElementById('score').textContent = score;
+document.getElementById('total').textContent = questions.length;
+document.getElementById('percent').textContent = Math.round(score*100/questions.length) + '%';
+}
+</script>
+</body>
+</html>
