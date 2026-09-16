@@ -1772,6 +1772,7 @@ ul.actions li .links a{margin-right:8px}
     '    - 科学(Sciences)课 → 状元养成计划生物/物理竞赛（不要配语言中心）\n'+
     '    - 人文(Individuals and Societies)课 → 状元养成计划模拟联合国/辩论社\n'+
     '    【强制】每生成 3 条校内行动，必须同时生成 1 条校外行动（如托福/雅思校外集训、AMC/物理/生物竞赛校外冲刺班、一对一学科辅导、科研项目等）。确保行动清单同时包含「校内」和「校外」两种类型的选项，供家长根据需求选择。\n'+
+    '    【强制】行动清单请按照学生弱项学科的优先级排序：弱项最多的学科（如 Humanites 人文社科 Final=5）对应的行动放在最前面，其次是次弱项学科（如 English 英语 Final=6），以此类推。不要把强项学科的行动排在弱项前面。\n'+
     '//    - 标「校内」的 title 必须点名具体 IB MYP 学科课程 + 哪个四标准(A/B/C/D)需补强 + 白名单中的康桥校内真实资源，例如「校内 · 数学(Mathematics)课 — 报名「状元养成计划」AMC/AMC10 冲刺班，重点提升 B（探究与规律）6/8」，或「校内 · 英语(English)课 — 参加语言中心托福/雅思写作工作坊，重点提升 D（沟通）6/8」；不要泛泛写"语言中心"。\n'+
     '//    - 标「校外」的：托福/雅思集训、暑期科研、国际竞赛报名、一对一学科辅导等。\n'+
     '// 3) 每条 action 须关联档案真实字段，reason 写清触发依据；性格与兴趣地图须转化为具体行动（按 Holland 代码选社团、按兴趣地图深化项目）。\n'+
@@ -1932,17 +1933,36 @@ ul.actions li .links a{margin-right:8px}
     var actionsHtml;
     if(aiOk && ai.actions && ai.actions.length){
       var filtered = filterActions(ai.actions, p);
+      // 计算学科弱项顺序
+      var subjOrder = {};
+      SUBJ.forEach(function(s, idx){
+        var subj = p.subjects[s.key];
+        if(!subj || subj.score==null) { subjOrder[s.key] = 999; return; }
+        var cl = critList(subj);
+        var weakCount = cl.filter(function(c){ return c.n <= 6; }).length;
+        if(subj.score <= 5) weakCount += 2; // Final <=5 加权重
+        subjOrder[s.key] = -weakCount; // 弱项多的排前面
+      });
       var norm = filtered.map(function(it){
         var isOut = it.scope === '校外';
-        var m = aiMeta(it, p, isOut); // 传入是否校外标识
+        var m = aiMeta(it, p, isOut);
+        // 识别行动对应的学科
+        var order = 999;
+        for(var i=0;i<SUBJ.length;i++){
+          if(new RegExp(SUBJ[i].re).test(it.title+' '+it.reason)){
+            order = subjOrder[SUBJ[i].key];
+            break;
+          }
+        }
         return {
           title:it.title, reason:it.reason||'',
           scope:isOut ? '校外' : '校内',
           imp:it.importance||'中', urg:it.urgency||'中',
-          source:m.source, links:m.links
+          source:m.source, links:m.links,
+          order: order
         };
       });
-      actionsHtml = renderActions(norm, '以下行动由 MiniMax 实时分析生成，按「重要性 × 紧急性」排序，每条附信息来源和链接：');
+      actionsHtml = renderActions(norm, '以下行动由 MiniMax 实时分析生成，按学科弱项顺序+重要性×紧急性排序，每条附信息来源和链接：');
     } else {
       actionsHtml = renderActions(actionsItems(p), '以下行动按「重要性 × 紧急性」排序（重要/紧急双高者最优先），优先校内资源。每条标注触发原因与信息来源：');
     }
